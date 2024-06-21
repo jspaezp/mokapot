@@ -3,13 +3,14 @@
 #    Commit: https://github.com/scipy/scipy/commit/3cae6dc85d2288519cce3d3112e1c30e1f470cad
 #    Branch: main (#18570)
 #    Tags: v1.12.0 v1.12.0rc2 v1.12.0rc1
-# Reason was a bug in the original version line 139 (here 151) marked by the comment
-# "# C.1". In the paper the algorithm was based on, there is a comparison to 0 in step
-# C.1, but here was a comparison with `tol`, which sometimes led to non-convergent
-# iterations and a subsequent RuntimeError. This was fixed in this file by changing
-# `<= tol` to `< 0`, which is the correct form to check for a constraint violation.
-# If this is patched upstream in scipy, we can remove this file and the corresponding
-# import in peps.py.
+# Reason was a bug in the original version line 139 (here 151) marked by the
+# comment "# C.1". In the paper the algorithm was based on, there is a
+# comparison to 0 in step C.1, but here was a comparison with `tol`, which
+# sometimes led to non-convergent iterations and a subsequent RuntimeError.
+# This was fixed in this file by changing
+# `<= tol` to `< 0`, which is the correct form to check for a constraint
+# violation. If this is patched upstream in scipy, we can remove this file
+# and the corresponding import in peps.py.
 
 import numpy as np
 from scipy.linalg import solve
@@ -163,7 +164,9 @@ def _nnls(A, b, maxiter=None, tol=None):
             x *= 1 - alpha
             x += alpha * s
             P[x <= 0] = False
-            s[P] = solve(AtA[np.ix_(P, P)], Atb[P], assume_a="sym", check_finite=False)
+            s[P] = solve(
+                AtA[np.ix_(P, P)], Atb[P], assume_a="sym", check_finite=False
+            )
             s[~P] = 0  # C.6
             iter += 1
 

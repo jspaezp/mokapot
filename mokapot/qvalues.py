@@ -18,12 +18,16 @@ from .peps import (
 QVALUE_ALGORITHM = {
     "tdc": lambda scores, targets: tdc(scores, targets, desc=True),
     "from_peps": lambda scores, targets: qvalues_from_peps(scores, targets),
-    "from_counts": lambda scores, targets: qvalues_from_counts(scores, targets),
+    "from_counts": lambda scores, targets: qvalues_from_counts(
+        scores, targets
+    ),
 }
 
 
 @typechecked
-def tdc(scores: np.ndarray[float], target: np.ndarray[bool], desc: bool = True):
+def tdc(
+    scores: np.ndarray[float], target: np.ndarray[bool], desc: bool = True
+):
     """
     Estimate q-values using target decoy competition.
 
@@ -205,7 +209,8 @@ def qvalues_from_scores(scores, targets, qvalue_algorithm="tdc"):
         return qvalue_function(scores, targets)
     else:
         raise AssertionError(
-            f"Unknown qvalue algorithm in qvalues_from_scores: {qvalue_algorithm}"
+            "Unknown qvalue algorithm in qvalues_from_scores:"
+            f" {qvalue_algorithm}"
         )
 
 
@@ -242,12 +247,16 @@ def qvalues_from_peps(scores, targets, peps=None):
 
     target_scores = scores_sorted[targets_sorted]
     target_peps = peps_sorted[targets_sorted]
-    target_fdr = target_peps.cumsum() / np.arange(1, len(target_peps) + 1, dtype=float)
+    target_fdr = target_peps.cumsum() / np.arange(
+        1, len(target_peps) + 1, dtype=float
+    )
     target_qvalues = monotonize_simple(target_fdr, ascending=True)
 
     # Note: we need to flip the arrays again, since interp needs scores in
     #   ascending order
-    qvalues = np.interp(scores, np.flip(target_scores), np.flip(target_qvalues))
+    qvalues = np.interp(
+        scores, np.flip(target_scores), np.flip(target_qvalues)
+    )
     return qvalues
 
 
@@ -282,11 +291,16 @@ def qvalues_from_counts(scores, targets):
     targets_sorted = targets[ind]
     scores_sorted = scores[ind]
     fdr_sorted = (
-        pi0 * target_decoy_ratio * (~targets_sorted).cumsum() / targets_sorted.cumsum()
+        pi0
+        * target_decoy_ratio
+        * (~targets_sorted).cumsum()
+        / targets_sorted.cumsum()
     )
     qvalues_sorted = monotonize_simple(fdr_sorted, ascending=True)
 
     # Note: we need to flip the arrays again, since interp needs scores in
     # ascending order
-    qvalues = np.interp(scores, np.flip(scores_sorted), np.flip(qvalues_sorted))
+    qvalues = np.interp(
+        scores, np.flip(scores_sorted), np.flip(qvalues_sorted)
+    )
     return qvalues

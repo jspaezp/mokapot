@@ -130,9 +130,9 @@ def get_next_row(
 
 @typechecked
 def csv_row_iterator(path: Path) -> Iterator[DataRow]:
-    chunk_iterator = TabularDataReader.from_path(path).get_chunked_data_iterator(
-        chunk_size=MERGE_SORT_CHUNK_SIZE
-    )
+    chunk_iterator = TabularDataReader.from_path(
+        path
+    ).get_chunked_data_iterator(chunk_size=MERGE_SORT_CHUNK_SIZE)
     for chunk in chunk_iterator:
         records = chunk.to_dict(orient="records")
         yield from records
@@ -153,8 +153,12 @@ def merge_sort(paths: list[Path], score_column: str):
     else:
         row_iterator_func = csv_row_iterator
 
-    row_iterator_dict = {i: row_iterator_func(path) for i, path in enumerate(paths)}
-    current_row_dict = {i: next(row_iter) for i, row_iter in row_iterator_dict.items()}
+    row_iterator_dict = {
+        i: row_iterator_func(path) for i, path in enumerate(paths)
+    }
+    current_row_dict = {
+        i: next(row_iter) for i, row_iter in row_iterator_dict.items()
+    }
 
     while row_iterator_dict != {}:
         row = get_next_row(row_iterator_dict, current_row_dict, score_column)
@@ -236,8 +240,8 @@ def map_columns_to_indices(
         The result of the mapping, with the same structure as the `search`
         parameter but with indices instead of the search items. If the `search`
         parameter is a list, the result will be a list as well. If the `search`
-        parameter is a tuple, the result will be a tuple. The order of the items
-        in the result will be preserved.
+        parameter is a tuple, the result will be a tuple. The order of the
+        items in the result will be preserved.
 
     Raises
     ------

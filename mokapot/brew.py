@@ -452,9 +452,9 @@ def _predict(models_idx, psms, models, test_fdr, max_workers):
                 scores.append(np.hstack(fold_scores.pop(0)))
             except RuntimeError:
                 raise RuntimeError(
-                    "Failed to calibrate scores between cross-validation folds, "
-                    "because no target PSMs could be found below 'test_fdr'. Try "
-                    "raising 'test_fdr'."
+                    "Failed to calibrate scores between cross-validation "
+                    "folds, because no target PSMs could be found below "
+                    "'test_fdr'. Try raising 'test_fdr'."
                 )
         del targets
         del fold_scores

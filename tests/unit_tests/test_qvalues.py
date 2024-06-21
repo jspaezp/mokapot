@@ -99,8 +99,9 @@ def test_tdc_non_bool():
     scores = np.array([1, 2, 3, 4, 5])
     targets = np.array(["1", "0", "1", "0", "blarg"])
     with pytest.raises(ValueError):
-        # Q-June 2024: JSP Since this function is runtime-type-checked, what is the
-        # purpose of this test? should it be raise if the passed type is not
+        # Q-June 2024: JSP Since this function is runtime-type-checked,
+        # what is the purpose of this test?
+        # should it be raise if the passed type is not
         # bool or if it is not convertible to bool?
         tdc(scores, targets)
 
@@ -122,7 +123,12 @@ def rand_scores():
     R1 = stats.norm(loc=3, scale=2)
     NT0 = int(np.round(pi0 * N))
     NT1 = N - NT0
-    target_scores = np.concatenate((np.maximum(R1.rvs(NT1), R0.rvs(NT1)), R0.rvs(NT0)))
+    target_scores = np.concatenate(
+        (
+            np.maximum(R1.rvs(NT1), R0.rvs(NT1)),
+            R0.rvs(NT0),
+        )
+    )
     decoy_scores = R0.rvs(N)
     all_scores = np.concatenate((target_scores, decoy_scores))
     is_target = np.concatenate(
@@ -137,9 +143,9 @@ def rand_scores():
 
 
 def test_qvalues_from_peps(rand_scores):
-    # Note: we should also test against some known truth (of course, up to some error
-    #   margin and fixing the random seed), and also against shuffeling of the
-    #   target/decoy sequences.
+    # Note: we should also test against some known truth
+    #   (of course, up to some error margin and fixing the random seed),
+    #   and also against shuffeling of the target/decoy sequences.
     scores, targets = rand_scores
     qvalues = qvalues_from_peps(scores, targets)
     assert np.all(qvalues >= 0)

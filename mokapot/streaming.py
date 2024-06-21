@@ -183,7 +183,8 @@ class MergedTabularDataReader(TabularDataReader):
             get_value = get_value_dict
         else:
             raise ValueError(
-                f"ret_type must be 'dataframe' or 'records' or 'dicts', not {row_type}"
+                "ret_type must be 'dataframe', 'records'"
+                f" or 'dicts', not {row_type}"
             )
 
         def row_iterator_from_chunked(chunked_iter: Iterator) -> Iterator:
@@ -212,7 +213,9 @@ class MergedTabularDataReader(TabularDataReader):
             yield row
 
             try:
-                current_rows[iterator_index] = next(row_iterators[iterator_index])
+                current_rows[iterator_index] = next(
+                    row_iterators[iterator_index]
+                )
                 new_value = get_value(
                     current_rows[iterator_index], self.priority_column
                 )

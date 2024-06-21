@@ -264,8 +264,8 @@ def do_rollup(config):
     if len(list(src_dir.glob(f"*.{base_level}s.parquet"))) > 0:
         if len(list(src_dir.glob(f"*.{base_level}s"))) > 0:
             raise RuntimeError(
-                "Only input files of either type CSV or type Parquet should exist"
-                f" in '{src_dir}', but both types were found."
+                "Only input files of either type CSV or type Parquet should"
+                f" exist in '{src_dir}', but both types were found."
             )
         suffix = ".parquet"
         dtype = pa.bool_()
@@ -339,10 +339,9 @@ def do_rollup(config):
         ]
         for level in levels
     }
-    logging.debug(
-        "Writing to files: "
-        f"{ {level: list(map(str, files)) for level, files in out_files.items()} }"
-    )
+
+    lvls = {level: list(map(str, files)) for level, files in out_files.items()}
+    logging.debug("Writing to files: " f"{lvls}")
 
     # Determine columns for output files and intermediate files
     column_names = reader.get_column_names()
@@ -371,17 +370,24 @@ def do_rollup(config):
     # todo: We need an option to write parquet or sql for example (also, the
     #  output file type could depend on the input file type)
 
-    # Write temporary files which contain only the best scoring entity of a given level
-    logging.debug("Writing temp files: %s", [str(file) for file in temp_files.values()])
+    # Write temporary files which contain only the best scoring entity
+    #   of a given level
+    logging.debug(
+        "Writing temp files: %s", [str(file) for file in temp_files.values()]
+    )
 
     timer = make_timer()
     with auto_finalize(temp_writers.values()):
         count = 0
         seen_entities: dict[str, set] = {level: set() for level in levels}
-        for line in reader.get_row_iterator(temp_column_names, row_type=merge_row_type):
+        for line in reader.get_row_iterator(
+            temp_column_names, row_type=merge_row_type
+        ):
             count += 1
             if count % 10000 == 0:
-                logging.debug(f"  Processed {count} lines ({timer():.2f} seconds)")
+                logging.debug(
+                    f"  Processed {count} lines ({timer():.2f} seconds)"
+                )
 
             for level in levels:
                 seen = seen_entities[level]

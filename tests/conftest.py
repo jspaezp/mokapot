@@ -125,8 +125,14 @@ def psm_df_1000(tmp_path):
         "expmass": rng.uniform(500, 2000, size=500),
         "peptide": [_random_peptide(5, rng) for _ in range(500)],
         "proteins": ["_dummy" for _ in range(500)],
-        "score": np.concatenate([rng.normal(3, size=200), rng.normal(size=300)]),
-        "score2": np.concatenate([rng.normal(3, size=200), rng.normal(size=300)]),
+        "score": np.concatenate([
+            rng.normal(3, size=200),
+            rng.normal(size=300),
+        ]),
+        "score2": np.concatenate([
+            rng.normal(3, size=200),
+            rng.normal(size=300),
+        ]),
         "filename": "test.mzML",
         "ret_time": rng.uniform(0, 60 * 120, size=500),
         "charge": rng.choice([2, 3, 4], size=500),
@@ -174,8 +180,14 @@ def psm_df_1000_parquet(tmp_path):
         "expmass": rng.uniform(500, 2000, size=500),
         "peptide": [_random_peptide(5, rng) for _ in range(500)],
         "proteins": ["_dummy" for _ in range(500)],
-        "score": np.concatenate([rng.normal(3, size=200), rng.normal(size=300)]),
-        "score2": np.concatenate([rng.normal(3, size=200), rng.normal(size=300)]),
+        "score": np.concatenate([
+            rng.normal(3, size=200),
+            rng.normal(size=300),
+        ]),
+        "score2": np.concatenate([
+            rng.normal(3, size=200),
+            rng.normal(size=300),
+        ]),
         "filename": "test.mzML",
         "ret_time": rng.uniform(0, 60 * 120, size=500),
         "charge": rng.choice([2, 3, 4], size=500),
@@ -381,7 +393,10 @@ def psm_files_4000(tmp_path):
     ])
     expmass.sort()
     psms_df["ExpMass"] = expmass
-    peptides = np.hstack([np.arange(1, NC // 2 + 1), np.arange(1, NC // 2 + 1)])
+    peptides = np.hstack([
+        np.arange(1, NC // 2 + 1),
+        np.arange(1, NC // 2 + 1),
+    ])
     peptides.sort()
     psms_df["Peptide"] = peptides
     psms_df["Proteins"] = "dummy"

@@ -26,12 +26,19 @@ def test_find_columns():
 def test_find_optional_column():
     # With col=None:
     assert find_optional_column(None, ["ID", "Name", "Value"], "id") == "ID"
-    assert find_optional_column(None, ["Id", "Name", "Value"], "Value") == "Value"
+    assert (
+        find_optional_column(None, ["Id", "Name", "Value"], "Value") == "Value"
+    )
     assert find_optional_column(None, ["RefID", "Name", "Value"], "id") is None
 
     # With matching columns
-    assert find_optional_column("Name", ["ID", "Name", "Value"], "id") == "Name"
-    assert find_optional_column("Value", ["Id", "Name", "Value"], "Value") == "Value"
+    assert (
+        find_optional_column("Name", ["ID", "Name", "Value"], "id") == "Name"
+    )
+    assert (
+        find_optional_column("Value", ["Id", "Name", "Value"], "Value")
+        == "Value"
+    )
     assert find_optional_column("ID", ["ID", "Name", "Value"], "id") == "ID"
 
     # Without matching columns
@@ -45,21 +52,27 @@ def test_find_optional_column():
 def test_find_required_column():
     # Test column found
     assert (
-        find_required_column("Score", ["Identifier", "Score", "Norm_Score"]) == "Score"
+        find_required_column("Score", ["Identifier", "Score", "Norm_Score"])
+        == "Score"
     )
 
     # Test case-insensitive search
     assert (
-        find_required_column("score", ["Identifier", "Score", "Norm_Score"]) == "Score"
+        find_required_column("score", ["Identifier", "Score", "Norm_Score"])
+        == "Score"
     )
 
     # Test column not found
     with pytest.raises(ValueError):
-        find_required_column("Score_missing", ["Identifier", "Score", "Norm_Score"])
+        find_required_column(
+            "Score_missing", ["Identifier", "Score", "Norm_Score"]
+        )
 
     # Test column not unique
     with pytest.raises(ValueError):
-        find_required_column("Score", ["Identifier", "Score", "Norm_Score", "Score"])
+        find_required_column(
+            "Score", ["Identifier", "Score", "Norm_Score", "Score"]
+        )
 
     # Test empty columns list
     with pytest.raises(ValueError):

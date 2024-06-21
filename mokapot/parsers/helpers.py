@@ -20,8 +20,9 @@ def find_column(
         an error will be raised if the column is not found.
 
     unique : bool, optional
-        Specifies whether the column should be unique. If set to True (default),
-        an error will be raised if multiple columns with the same name are found.
+        Specifies whether the column should be unique.
+        If set to True (default), an error will be raised if multiple
+        columns with the same name are found.
 
     ignore_case : bool, optional
         Specifies whether case should be ignored when comparing column names.
@@ -35,8 +36,8 @@ def find_column(
     Raises
     ------
     ValueError
-        If the column is required and not found, or if multiple columns are found
-        but unique is set to True.
+        If the column is required and not found, or if multiple columns
+            are found but unique is set to True.
     """
     if ignore_case:
 
@@ -79,7 +80,9 @@ def find_columns(col: str, columns: list[str]) -> list[str]:
         The list of columns that match the given column name, ignoring case
         sensitivity.
     """
-    return find_column(col, columns, required=False, unique=False, ignore_case=True)
+    return find_column(
+        col, columns, required=False, unique=False, ignore_case=True
+    )
 
 
 @typechecked
@@ -103,7 +106,9 @@ def find_required_column(col: str, columns: list[str]) -> str:
     ValueError
         If the column was not found or not unique.
     """
-    return find_column(col, columns, required=True, unique=True, ignore_case=True)
+    return find_column(
+        col, columns, required=True, unique=True, ignore_case=True
+    )
 
 
 @typechecked

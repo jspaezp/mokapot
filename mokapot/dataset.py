@@ -1,6 +1,6 @@
 """The :py:class:`LinearPsmDataset` class is used to define a collection
-peptide-spectrum matches. The :py:class:`LinearPsmDataset` class is suitable for
-most types of data-dependent acquisition proteomics experiments.
+peptide-spectrum matches. The :py:class:`LinearPsmDataset` class is suitable
+for most types of data-dependent acquisition proteomics experiments.
 
 Although the class can be constructed from a :py:class:`pandas.DataFrame`, it
 is often easier to load the PSMs directly from a file in the `Percolator
@@ -349,7 +349,7 @@ class LinearPsmDataset(PsmDataset):
     has_proteins : bool
     rng : numpy.random.Generator
        The random number generator.
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -487,8 +487,8 @@ class OnDiskPsmDataset:
         self.specId_column = specId_column
         self.spectra_dataframe = spectra_dataframe
 
-        # todo: btw: should not get the filename but a reader object or something,
-        #     in order to parse other filetypes without if's
+        # todo: btw: should not get the filename but a reader object or
+        #   something, in order to parse other filetypes without if's
         if filename:
             columns = TabularDataReader.from_path(filename).get_column_names()
 
@@ -668,8 +668,8 @@ class OnDiskPsmDataset:
             start_split_indices.append(end_idx)
             start_idx = end_idx
 
-        # search for smallest index bigger of equal to split index in start indexes of
-        # unique groups
+        # search for smallest index bigger of equal to split index in start
+        # indexes of unique groups
         idx_split = idx_start_unique[
             np.searchsorted(idx_start_unique, start_split_indices)
         ]

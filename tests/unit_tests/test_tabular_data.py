@@ -202,7 +202,12 @@ def test_column_renaming(psm_df_6):
     assert (reader.read().values == orig_reader.read().values).all()
     assert (
         reader.read(["Pep", "protein", "T", "feature_1"]).values
-        == orig_reader.read(["peptide", "protein", "target", "feature_1"]).values
+        == orig_reader.read([
+            "peptide",
+            "protein",
+            "target",
+            "feature_1",
+        ]).values
     ).all()
 
     renamed_chunk = next(

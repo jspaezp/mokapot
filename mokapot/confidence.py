@@ -132,10 +132,11 @@ class Confidence(object):
         """
         # The columns here are usually the metadata_columns from
         # `confidence.assign_confidence`
-        # which are usually ['PSMId', 'Label', 'peptide', 'proteinIds', 'score']
-        # Since, those are exactly the columns that are written there to the csv
-        # files, it's not exactly clear, why they are passed along here anyway
-        # (but let's assert that here)
+        # which are usually:
+        #   ['PSMId', 'Label', 'peptide', 'proteinIds', 'score']
+        # Since, those are exactly the columns that are written there to the
+        # csv files, it's not exactly clear, why they are passed along
+        # here anyway (but let's assert that here)
         reader = TabularDataReader.from_path(data_path)
         assert reader.get_column_names() == columns
 
@@ -144,7 +145,8 @@ class Confidence(object):
             CONFIDENCE_CHUNK_SIZE, in_columns
         )
 
-        # Note: the out_columns need to match those in assign_confidence (out_files)
+        # Note: the out_columns need to match those in assign_confidence
+        #   (out_files)
         qvalue_column = "q_value"
         pep_column = "posterior_error_prob"
         out_columns = in_columns + [qvalue_column, pep_column]
@@ -592,8 +594,8 @@ def assign_confidence(
         level_data_path[level] = dest_dir / f"{file_root}{level}{file_ext}"
         level_hash_columns[level] = curr_psms.protein_column
 
-    # fixme: the output header and data do not fit, when the extra_output_columns
-    #  are in a different place. Fix that.
+    # fixme: the output header and data do not fit, when the
+    #   `extra_output_columns` are in a different place. Fix that.
     out_columns_psms_peps = [
         "PSMId",
         "peptide",
@@ -616,7 +618,8 @@ def assign_confidence(
     for _psms, score, desc, prefix in zip(psms, scores, descs, prefixes):
         out_metadata_columns = [
             "PSMId",
-            # fixme: Why is this the only column where we take the name from the input?
+            # fixme: Why is this the only column where we take
+            #   the name from the input?
             _psms.target_column,
             "peptide",
             *extra_output_columns,
@@ -809,8 +812,12 @@ def create_sorted_file_iterator(
         )
     )
 
-    scores_metadata_paths = list(dest_dir.glob(f"{file_prefix}scores_metadata_*"))
-    sorted_file_iterator = merge_sort(scores_metadata_paths, score_column="score")
+    scores_metadata_paths = list(
+        dest_dir.glob(f"{file_prefix}scores_metadata_*")
+    )
+    sorted_file_iterator = merge_sort(
+        scores_metadata_paths, score_column="score"
+    )
 
     # Return the sorted iterator and clean up afterwards, regardless of whether
     # an exception was thrown in the `with` block
@@ -821,7 +828,9 @@ def create_sorted_file_iterator(
             try:
                 sc_path.unlink()
             except Exception as e:
-                LOGGER.warning("Caught exception while deleting temp files: %s", e)
+                LOGGER.warning(
+                    "Caught exception while deleting temp files: %s", e
+                )
 
 
 @typechecked

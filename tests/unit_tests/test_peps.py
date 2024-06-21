@@ -17,7 +17,12 @@ def get_target_decoy_data():
     R1 = stats.norm(loc=3, scale=2)
     NT0 = int(np.round(pi0 * N))
     NT1 = N - NT0
-    target_scores = np.concatenate((np.maximum(R1.rvs(NT1), R0.rvs(NT1)), R0.rvs(NT0)))
+    target_scores = np.concatenate(
+        (
+            np.maximum(R1.rvs(NT1), R0.rvs(NT1)),
+            R0.rvs(NT0),
+        )
+    )
     decoy_scores = R0.rvs(N)
     all_scores = np.concatenate((target_scores, decoy_scores))
     is_target = np.concatenate(
@@ -156,8 +161,8 @@ def test_fit_nnls_zeros_mult(caplog):
 
 
 def test_fit_nnls_peps():
-    # This is from a real test case that failed due to a problem in the scipy._nnls
-    # implementation
+    # This is from a real test case that failed due to a problem in
+    # the scipy._nnls implementation
     n0 = np.array(
         [
             3,

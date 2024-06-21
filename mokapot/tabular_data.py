@@ -73,9 +73,9 @@ class TabularDataReader(ABC):
     def from_path(
         file_name: Path, column_map: dict[str, str] | None = None, **kwargs
     ) -> "TabularDataReader":
-        # Currently, we look only at the suffix, however, in the future we could
-        # also look into the file itself (is it ascii? does it have some "magic
-        # bytes"? ...)
+        # Currently, we look only at the suffix, however, in the future we
+        # could also look into the file itself (is it ascii? does it have
+        # some "magic bytes"? ...)
         suffix = file_name.suffix
         if suffix in CSV_SUFFIXES:
             reader = CSVFileReader(file_name, **kwargs)
@@ -121,11 +121,13 @@ class ColumnMappedReader(TabularDataReader):
         return orig_columns
 
     def _get_mapped_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        # todo: enable this again...
+        # todo: enable this again... Q June2024: When?
         # if self._returned_dataframe_is_mutable():
         #     df.rename(columns=self.column_map, inplace=True, copy=False)
         # else:
-        #     df = df.rename(columns=self.column_map, inplace=False, copy=False)
+        #     df = df.rename(
+        #        columns=self.column_map, inplace=False, copy=False
+        #     )
         df = df.rename(columns=self.column_map, inplace=False)
         return df
 
@@ -289,7 +291,8 @@ class TabularDataWriter(ABC):
         columns = data.columns.tolist()
         if not columns == self.get_column_names():
             raise ValueError(
-                f"Column names {columns} do not match {self.get_column_names()}"
+                f"Column names {columns} do not "
+                f"match {self.get_column_names()}"
             )
 
         if self.column_types is not None:
@@ -422,13 +425,16 @@ class BufferedWriter(TabularDataWriter):
         if self.buffer_type == TableType.DataFrame:
             if not isinstance(data, pd.DataFrame):
                 raise TypeError(
-                    f"Parameter data must be of type DataFrame, not {type(data)}"
+                    "Parameter data must be of type DataFrame,"
+                    f" not {type(data)}"
                 )
 
             if self.buffer is None:
                 self.buffer = data.copy(deep=True)
             else:
-                self.buffer = pd.concat([self.buffer, data], axis=0, ignore_index=True)
+                self.buffer = pd.concat(
+                    [self.buffer, data], axis=0, ignore_index=True
+                )
         elif self.buffer_type == TableType.Dicts:
             if isinstance(data, dict):
                 data = [data]

@@ -14,7 +14,9 @@ from mokapot.brew_rollup import compute_rollup_levels
 from ..helpers.cli import run_mokapot_cli, _run_cli
 
 
-def run_brew_rollup(params: List[Any], run_in_subprocess=None, capture_output=False):
+def run_brew_rollup(
+    params: List[Any], run_in_subprocess=None, capture_output=False
+):
     from mokapot.brew_rollup import main
 
     return _run_cli(

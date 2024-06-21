@@ -3,8 +3,8 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 from triqler import qvality
 
-# TODO: Remove the next and uncomment the 2nd next line when scipy.optimize.nnls
-#   is fixed (see _nnls.py for explanation)
+# TODO: Remove the next and uncomment the 2nd next line when
+#  scipy.optimize.nnls is fixed (see _nnls.py for explanation)
 from ._nnls import nnls
 
 # from scipy.optimize import nnls
@@ -16,8 +16,12 @@ PEP_ALGORITHM = {
     "qvality_bin": lambda scores, targets: peps_from_scores_qvality(
         scores, targets, use_binary=True
     ),
-    "kde_nnls": lambda scores, targets: peps_from_scores_kde_nnls(scores, targets),
-    "hist_nnls": lambda scores, targets: peps_from_scores_hist_nnls(scores, targets),
+    "kde_nnls": lambda scores, targets: peps_from_scores_kde_nnls(
+        scores, targets
+    ),
+    "hist_nnls": lambda scores, targets: peps_from_scores_hist_nnls(
+        scores, targets
+    ),
 }
 
 
@@ -35,7 +39,7 @@ def peps_from_scores(scores, targets, pep_algorithm="qvality"):
         algorithm.
 
     :raises AssertionError: If the specified algorithm is unknown.
-    """
+    """  # noqa: E501
     pep_function = PEP_ALGORITHM[pep_algorithm]
     if pep_function is not None:
         return pep_function(scores, targets)
@@ -59,8 +63,8 @@ def peps_from_scores_qvality(scores, targets, use_binary=False):
     """  # noqa: E501
     # todo: this method should contain the logic of sorting the scores
     #   (and the returned peps afterwards)
-    # todo: should also do the error handling, since getQvaluesFromScores may throw a
-    #   SystemExit exception
+    # todo: should also do the error handling, since getQvaluesFromScores may
+    # throw a SystemExit exception
     qvalues_from_scores = (
         qvality.getQvaluesFromScoresQvality
         if use_binary
@@ -144,8 +148,8 @@ def monotonize_nnls(x, w=None, ascending=True):
     N = len(x)
     A = np.tril(np.ones((N, N)))
     if w is not None:
-        # We do the weighting by multiplying both sides (i.e. A and x) by a diagonal
-        # matrix consisting of the square roots of the weights
+        # We do the weighting by multiplying both sides (i.e. A and x) by
+        # a diagonal matrix consisting of the square roots of the weights
         D = np.diag(np.sqrt(w))
         A = D.dot(A)
         x = D.dot(x)
@@ -220,13 +224,16 @@ def peps_from_scores_kde_nnls(
         7. Return the estimated probabilities of target being incorrect (peps).
     """  # noqa: E501
 
-    # Compute evaluation scores, and target and decoy pdfs (evaluated at given scores)
+    # Compute evaluation scores, and target and decoy pdfs
+    # (evaluated at given scores)
     eval_scores, target_pdf, decoy_pdf = pdfs_from_scores(
         scores, targets, num_eval_scores
     )
 
     # Estimate pi0 and estimate number of correct targets
-    pi0_est = estimate_pi0_by_slope(target_pdf, decoy_pdf, pi0_estimation_threshold)
+    pi0_est = estimate_pi0_by_slope(
+        target_pdf, decoy_pdf, pi0_estimation_threshold
+    )
 
     correct = target_pdf - decoy_pdf * pi0_est
     correct = np.clip(correct, 0, None)
@@ -234,12 +241,12 @@ def peps_from_scores_kde_nnls(
     # Estimate peps from #correct targets, clip it
     pepEst = np.clip(1.0 - correct / target_pdf, 0, 1)
 
-    # Now monotonize using the NNLS algo putting more weight on areas with high target
-    # density
+    # Now monotonize using the NNLS algo putting more weight on areas with high
+    # target density
     pepEst = monotonize_nnls(pepEst, w=target_pdf, ascending=False)
 
-    # Linearly interpolate the pep estimates from the eval points to the scores of
-    # interest.
+    # Linearly interpolate the pep estimates from the eval points to the scores
+    # of interest.
     peps = np.interp(scores, eval_scores, pepEst)
     peps = np.clip(peps, 0, 1)
     return peps
@@ -265,7 +272,8 @@ def fit_nnls(n, k, ascending=True, *, weight_exponent=1, erase_zeros=False):
         - p: The monotonically increasing or decreasing array of length N.
 
     """  # noqa: E501
-    # For the basic idea of this algorithm, see the `monotonize_nnls` algorithm.
+    # For the basic idea of this algorithm, see the `monotonize_nnls`
+    # algorithm.
     # This is more or less the same, just with
     # JSPP Q: With what??
     if not ascending:
@@ -288,14 +296,14 @@ def fit_nnls(n, k, ascending=True, *, weight_exponent=1, erase_zeros=False):
             W = np.delete(W, nz, axis=0)
 
     # The default tolerance of nnls is too low, leading sometimes to
-    # non-convergent iterations and subsequent failures. A good tolerance should
-    # probably be related to the condition number of `W @ A` and to the error in
-    # `W @ k` (numerical and statistical, where the latter is probably much,
-    # much larger than the former). Since this is a) difficult to estimate
-    # anyway and b) run-time consuming, we settle here for a fixed tolerance,
-    # which a) seems large enough to never lead to non-convergence and b) is
-    # fitting for the typical condition numbers and values of k seen in
-    # experiments.
+    # non-convergent iterations and subsequent failures. A good tolerance
+    # should probably be related to the condition number of `W @ A` and to
+    # the error in `W @ k` (numerical and statistical, where the latter is
+    # probably much, much larger than the former). Since this is a) difficult
+    # to estimate anyway and b) run-time consuming, we settle here for a
+    # fixed tolerance, # which a) seems large enough to never lead to
+    # non-convergence and b) is fitting for the typical condition numbers and
+    # values of k seen in experiments.
     tol = 1e-7
     d, _ = nnls(W @ A, W @ k, atol=tol)
     p = np.cumsum(d)
@@ -318,8 +326,12 @@ def hist_data_from_scores(scores, targets, bins=None, density=False):
     """  # noqa: E501
     if bins is None:
         bins = np.histogram_bin_edges(scores, bins="auto")
-    target_counts, _ = np.histogram(scores[targets], bins=bins, density=density)
-    decoy_counts, _ = np.histogram(scores[~targets], bins=bins, density=density)
+    target_counts, _ = np.histogram(
+        scores[targets], bins=bins, density=density
+    )
+    decoy_counts, _ = np.histogram(
+        scores[~targets], bins=bins, density=density
+    )
     eval_scores = 0.5 * (bins[:-1] + bins[1:])
     return eval_scores, target_counts, decoy_counts
 
@@ -369,18 +381,23 @@ def peps_from_scores_hist_nnls(scores, targets, scale_to_one=True):
     7. Return the interpolated and clipped PEP estimates.
     """  # noqa: E501
     # Define joint bins for targets and decoys
-    eval_scores, target_counts, decoy_counts = hist_data_from_scores(scores, targets)
-    n, k = estimate_trials_and_successes(decoy_counts, target_counts, restrict=False)
+    eval_scores, target_counts, decoy_counts = hist_data_from_scores(
+        scores, targets
+    )
+    n, k = estimate_trials_and_successes(
+        decoy_counts, target_counts, restrict=False
+    )
 
-    # Do monotone fit, minimizing || n - diag(p) * k || with weights n over monotone
-    # descending p
+    # Do monotone fit, minimizing || n - diag(p) * k || with weights n over
+    # monotone descending p
     pep_est = fit_nnls(n, k, ascending=False)
 
     if scale_to_one and pep_est[0] < 1:
         pep_est = pep_est / pep_est[0]
 
-    # Linearly interpolate the pep estimates from the eval points to the scores of
-    # interest (keeping monotonicity) clip in case we went slightly out of bounds
+    # Linearly interpolate the pep estimates from the eval points to the
+    # scores of interest (keeping monotonicity) clip in case we went
+    # slightly out of bounds
     return np.clip(np.interp(scores, eval_scores, pep_est), 0, 1)
 
 
@@ -394,16 +411,20 @@ def peps_from_scores_hist_direct(scores, targets):
     :return: A numpy array of estimated PEP (Posterior Error Probability) values based on the scores.
     """  # noqa: E501
     # Define joint bins for targets and decoys
-    eval_scores, target_counts, decoy_counts = hist_data_from_scores(scores, targets)
+    eval_scores, target_counts, decoy_counts = hist_data_from_scores(
+        scores, targets
+    )
 
     # Estimate number of trials and successes per bin
     n, k = estimate_trials_and_successes(decoy_counts, target_counts)
 
-    # Direct "no-frills" estimation of the PEP without monotonization or anything else
+    # Direct "no-frills" estimation of the PEP without monotonization
+    # or anything else
     pep_est = k / n
 
-    # Linearly interpolate the pep estimates from the eval points to the scores of
-    # interest (keeping monotonicity) clip in case we went slightly out of bounds
+    # Linearly interpolate the pep estimates from the eval points to the
+    # scores of interest (keeping monotonicity) clip in case we went slightly
+    # out of bounds
     return np.clip(np.interp(scores, eval_scores, pep_est), 0, 1)
 
 
@@ -425,7 +446,9 @@ def plot_peps(
         ax = plt.gca()
         ax.clear()
     if show_pdfs:
-        eval_scores, target_pdf, decoy_pdf = pdfs_from_scores(scores, targets, 200)
+        eval_scores, target_pdf, decoy_pdf = pdfs_from_scores(
+            scores, targets, 200
+        )
         ax.plot(eval_scores, target_pdf, label="Target PDF")
         ax.plot(eval_scores, decoy_pdf, label="Decoy PDF")
     if show_hists:
@@ -433,7 +456,9 @@ def plot_peps(
         ax.hist(scores[~targets], bins=bins, density=True, color=("C1", 0.5))
         ax.hist(scores[targets], bins=bins, density=True, color=("C0", 0.5))
     if show_qvality:
-        peps_qv = peps_from_scores_qvality(scores, targets, use_binary=False) + 0.01
+        peps_qv = (
+            peps_from_scores_qvality(scores, targets, use_binary=False) + 0.01
+        )
         ax.plot(scores, peps_qv, label="Mokapot (triqler)")
     if show_kde_nnls:
         peps_km = peps_from_scores_kde_nnls(scores, targets, 200)
@@ -445,18 +470,26 @@ def plot_peps(
         import shutil
 
         if shutil.which("qvality") is not None:
-            peps_qv = peps_from_scores_qvality(scores, targets, use_binary=True)
+            peps_qv = peps_from_scores_qvality(
+                scores, targets, use_binary=True
+            )
             ax.plot(scores, peps_qv, label="QVality C++")
     if show_peps_direct:
         peps_bg = peps_from_scores_hist_direct(scores, targets)
-        ax.plot(scores, peps_bg, label="Direct", color=("k", 0.5), linewidth=0.5)
+        ax.plot(
+            scores, peps_bg, label="Direct", color=("k", 0.5), linewidth=0.5
+        )
     if peps_true is not None:
-        ax.plot(scores, peps_true, color=("k", 0.5), linestyle="--", label="Truth")
+        ax.plot(
+            scores, peps_true, color=("k", 0.5), linestyle="--", label="Truth"
+        )
     ax.set_xlabel("Score")
     ax.set_ylabel("Prob.")
     ax.legend(loc="lower right")
 
-    bin_edges, target_counts, decoy_counts = hist_data_from_scores(scores, targets)
+    bin_edges, target_counts, decoy_counts = hist_data_from_scores(
+        scores, targets
+    )
     delta = bin_edges[1] - bin_edges[0]
 
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes

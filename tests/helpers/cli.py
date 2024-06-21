@@ -16,8 +16,8 @@ def catch_type_check():
     """
     Catch Type Check
 
-    Context manager that catches TypeCheckError exceptions and prints detailed error
-    information.
+    Context manager that catches TypeCheckError exceptions and prints detailed
+    error information.
 
     Usage:
     ------
@@ -58,7 +58,8 @@ def _run_cli(
         The list of parameters to pass to the main function.
     run_in_subprocess : Optional[bool], default: None
         Determines whether to run the module in a subprocess. If `None`, the
-        value is determined by the environment variable `TEST_CLI_IN_SUBPROCESS`
+        value is determined by the environment
+        variable `TEST_CLI_IN_SUBPROCESS`
     capture_output : bool, default: False
         Determines whether to capture the stdout and stderr output.
 
@@ -78,12 +79,17 @@ def _run_cli(
     if run_in_subprocess:
         cmd = ["python", "-m", module] + params
         try:
-            res = subprocess.run(cmd, check=True, capture_output=capture_output)
+            res = subprocess.run(
+                cmd, check=True, capture_output=capture_output
+            )
         except subprocess.CalledProcessError as e:
             logging.error(
-                f"Calling {module} with params {params} failed\nStderr: {e.stderr}"
+                f"Calling {module} with params {params} failed"
+                f"\nStderr: {e.stderr}"
             )
-            raise RuntimeError(f"Calling {module} with params {params} failed") from e
+            raise RuntimeError(
+                f"Calling {module} with params {params} failed"
+            ) from e
         if capture_output:
             return {
                 "stdout": res.stdout.decode(),
@@ -111,7 +117,9 @@ def _run_cli(
             main_func(params)
 
 
-def run_mokapot_cli(params: List[Any], run_in_subprocess=None, capture_output=False):
+def run_mokapot_cli(
+    params: List[Any], run_in_subprocess=None, capture_output=False
+):
     """
     Run the mokapot command either in a subprocess or as direct
     call to the main function.
@@ -131,7 +139,7 @@ def run_mokapot_cli(params: List[Any], run_in_subprocess=None, capture_output=Fa
 
     capture_output : bool, default: False
         Determines whether to capture the stdout and stderr output.
-    """
+    """  # noqa: E501
     return _run_cli(
         "mokapot.mokapot",
         mokapot_main,
