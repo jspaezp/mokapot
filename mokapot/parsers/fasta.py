@@ -107,9 +107,7 @@ def read_fasta(
     del fasta
 
     # Sort proteins by number of peptides:
-    proteins = {
-        k: v for k, v in sorted(proteins.items(), key=lambda i: len(i[1]))
-    }
+    proteins = {k: v for k, v in sorted(proteins.items(), key=lambda i: len(i[1]))}
 
     LOGGER.info("Matching target to decoy proteins...")
     # Build the decoy map:
@@ -131,9 +129,7 @@ def read_fasta(
         raise ValueError("Only decoy proteins were found in the FASTA file.")
 
     if no_decoys and no_decoys < len(decoy_map):
-        LOGGER.warning(
-            "Found %i target proteins without matching decoys.", no_decoys
-        )
+        LOGGER.warning("Found %i target proteins without matching decoys.", no_decoys)
 
     LOGGER.info("Building protein groups...")
     # Group Proteins
@@ -148,8 +144,7 @@ def read_fasta(
     if not has_decoys:
         LOGGER.info("No decoy sequences were found in the FASTA file.")
         LOGGER.info(
-            "  - Creating decoy protein groups that mirror the target "
-            "proteins."
+            "  - Creating decoy protein groups that mirror the target " "proteins."
         )
 
     # unique peptides:
@@ -243,9 +238,7 @@ def make_decoys(
         proteins = decoys
 
     con_msg = {True: " target and", False: ""}
-    LOGGER.info(
-        "Writing%s decoy proteins to %s...", con_msg[concatenate], out_file
-    )
+    LOGGER.info("Writing%s decoy proteins to %s...", con_msg[concatenate], out_file)
     fasta = []
     for prot, seq in proteins:
         seq = "\n".join(wrap(seq))
@@ -435,11 +428,7 @@ def _cleavage_sites(sequence, enzyme_regex):
         enzyme_regex = re.compile(enzyme_regex)
 
     # Find the cleavage sites
-    sites = (
-        [0]
-        + [m.end() for m in enzyme_regex.finditer(sequence)]
-        + [len(sequence)]
-    )
+    sites = [0] + [m.end() for m in enzyme_regex.finditer(sequence)] + [len(sequence)]
     return sites
 
 

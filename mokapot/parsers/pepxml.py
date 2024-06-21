@@ -100,9 +100,7 @@ def read_pepxml(
         psms["num_matched_peptides"] = np.log10(psms["num_matched_peptides"])
 
     # Create charge columns:
-    psms = pd.concat(
-        [psms, pd.get_dummies(psms["charge"], prefix="charge")], axis=1
-    )
+    psms = pd.concat([psms, pd.get_dummies(psms["charge"], prefix="charge")], axis=1)
 
     # psms = psms.drop("charge", axis=1)
     # -log10 p-values
@@ -175,9 +173,7 @@ def _parse_pepxml(pepxml_file, decoy_prefix):
         df = pd.DataFrame.from_records(itertools.chain.from_iterable(psms))
         df["ms_data_file"] = df["ms_data_file"].astype("category")
     except etree.XMLSyntaxError:
-        raise ValueError(
-            f"{pepxml_file} is not a PepXML file or is malformed."
-        )
+        raise ValueError(f"{pepxml_file} is not a PepXML file or is malformed.")
     return df
 
 

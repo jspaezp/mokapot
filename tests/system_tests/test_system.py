@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 import mokapot
-from mokapot.tabular_data import TabularDataReader, CSVFileReader
+from mokapot.tabular_data import CSVFileReader
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,16 +36,15 @@ def test_compare_to_percolator(tmp_path):
 
     perc_path = Path("data", "percolator.{p}.txt")
     moka_path = tmp_path / "targets.{p}"
-    format_name = lambda path, **kwargs: path.with_name(
-        path.name.format(**kwargs)
-    )
+
+    def format_name(path, **kwargs):
+        return path.with_name(path.name.format(**kwargs))
+
     perc_res = {
-        p: CSVFileReader(format_name(perc_path, p=p)).read()
-        for p in ["proteins"]
+        p: CSVFileReader(format_name(perc_path, p=p)).read() for p in ["proteins"]
     }
     moka_res = {
-        p: CSVFileReader(format_name(moka_path, p=p)).read()
-        for p in ["proteins"]
+        p: CSVFileReader(format_name(moka_path, p=p)).read() for p in ["proteins"]
     }
 
     for level in ["proteins"]:
@@ -68,9 +67,7 @@ def test_compare_to_percolator(tmp_path):
             )
             pd.set_option("display.max_columns", None)
 
-        assert (
-            merged["q-value_mokapot"].corr(merged["q-value_percolator"]) > 0.99
-        )
+        assert merged["q-value_mokapot"].corr(merged["q-value_percolator"]) > 0.99
         assert (
             merged["posterior_error_prob_mokapot"].corr(
                 merged["posterior_error_prob_percolator"]

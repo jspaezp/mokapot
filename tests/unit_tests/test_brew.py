@@ -39,9 +39,7 @@ def test_brew_random_forest(psms_ondisk):
         RandomForestClassifier(),
         train_fdr=0.1,
     )
-    psms, models, scores, desc = mokapot.brew(
-        psms_ondisk, model=rfm, test_fdr=0.1
-    )
+    psms, models, scores, desc = mokapot.brew(psms_ondisk, model=rfm, test_fdr=0.1)
     assert len(models) == 3
     assert isinstance(models[0], Model)
 
@@ -72,9 +70,7 @@ def test_brew_joint_parquet(psms_ondisk_from_parquet, svm):
 
 def test_brew_folds(psms_ondisk, svm):
     """Test that changing the number of folds works"""
-    psms, models, scores, desc = mokapot.brew(
-        psms_ondisk, svm, test_fdr=0.05, folds=4
-    )
+    psms, models, scores, desc = mokapot.brew(psms_ondisk, svm, test_fdr=0.05, folds=4)
     assert len(scores) == 1
     assert len(psms) == 1
     assert len(models) == 4
@@ -96,9 +92,7 @@ def test_brew_seed(psms_ondisk, svm):
     )
     assert len(models_b) == folds
 
-    assert np.array_equal(
-        scores_a[0], scores_b[0]
-    ), "Results differed with same seed"
+    assert np.array_equal(scores_a[0], scores_b[0]), "Results differed with same seed"
 
     psms_c, models_c, scores_c, desc_c = mokapot.brew(
         psms_ondisk_c, svm, test_fdr=0.05, folds=folds, rng=seed + 2
@@ -133,9 +127,7 @@ def test_brew_seed_parquet(psms_ondisk_from_parquet, svm):
     )
     assert len(models_b) == folds
 
-    assert np.array_equal(
-        scores_a[0], scores_b[0]
-    ), "Results differed with same seed"
+    assert np.array_equal(scores_a[0], scores_b[0]), "Results differed with same seed"
 
     psms_c, models_c, scores_c, desc_c = mokapot.brew(
         psms_ondisk_c,
@@ -171,9 +163,7 @@ def test_brew_test_fdr_error_parquet(psms_ondisk_from_parquet, svm):
 
 def test_brew_multiprocess(psms_ondisk, svm):
     """Test that multiprocessing doesn't yield an error"""
-    _, models, _, _ = mokapot.brew(
-        psms_ondisk, svm, test_fdr=0.05, max_workers=2
-    )
+    _, models, _, _ = mokapot.brew(psms_ondisk, svm, test_fdr=0.05, max_workers=2)
     # The models should not be the same:
     assert_not_close(models[0].estimator.coef_, models[1].estimator.coef_)
     assert_not_close(models[1].estimator.coef_, models[2].estimator.coef_)
@@ -232,10 +222,7 @@ def test_brew_using_non_trained_models_error(psms_ondisk, svm):
     svm.is_trained = False
     with pytest.raises(RuntimeError) as err:
         mokapot.brew(psms_ondisk, [svm, svm, svm], test_fdr=0.05)
-    assert (
-        "One or more of the provided models was not previously trained"
-        in str(err)
-    )
+    assert "One or more of the provided models was not previously trained" in str(err)
 
 
 def assert_not_close(x, y):

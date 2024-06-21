@@ -32,9 +32,7 @@ LOGGER = logging.getLogger(__name__)
 
 # Constants -------------------------------------------------------------------
 PERC_GRID = {
-    "class_weight": [
-        {0: neg, 1: pos} for neg in (0.1, 1, 10) for pos in (0.1, 1, 10)
-    ]
+    "class_weight": [{0: neg, 1: pos} for neg in (0.1, 1, 10) for pos in (0.1, 1, 10)]
 }
 
 
@@ -182,7 +180,7 @@ class Model:
         self._rng = np.random.default_rng(rng)
 
     @typechecked
-    def save(self, out_file : Path):
+    def save(self, out_file: Path):
         """
         Save the model to a file.
 
@@ -227,13 +225,10 @@ class Model:
         feat_names = psms.features.columns.tolist()
         if set(feat_names) != set(self.features):
             raise ValueError(
-                "Features of the input data do not match the "
-                "features of this Model."
+                "Features of the input data do not match the " "features of this Model."
             )
 
-        feat = self.scaler.transform(
-            psms.features.loc[:, self.features].values
-        )
+        feat = self.scaler.transform(psms.features.loc[:, self.features].values)
 
         return _get_scores(self.estimator, feat)
 
@@ -316,9 +311,7 @@ class Model:
             target = target[shuffled_idx]
             num_passed.append((target == 1).sum())
 
-            LOGGER.debug(
-                "\t- Iteration %i: %i training PSMs passed.", i, num_passed[i]
-            )
+            LOGGER.debug("\t- Iteration %i: %i training PSMs passed.", i, num_passed[i])
 
             if num_passed[i] == 0:
                 raise RuntimeError("Model performs worse after training.")
@@ -466,7 +459,7 @@ class DummyScaler:
 
 # Functions -------------------------------------------------------------------
 @typechecked
-def save_model(model, out_file : Path):
+def save_model(model, out_file: Path):
     """
     Save a :py:class:`mokapot.model.Model` object to a file.
 
@@ -490,7 +483,7 @@ def save_model(model, out_file : Path):
 
 
 @typechecked
-def load_model(model_file : Path):
+def load_model(model_file: Path):
     """
     Load a saved model for mokapot.
 

@@ -17,8 +17,9 @@ One of more instance of this class are required to use the
 
 """
 
+from __future__ import annotations
+
 import logging
-import pyarrow.parquet as pq
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -106,8 +107,7 @@ class PsmDataset(ABC):
         missing_columns = [c not in self.data.columns for c in used_columns]
         if not missing_columns:
             raise ValueError(
-                "The following specified columns were not found: "
-                f"{missing_columns}"
+                "The following specified columns were not found: " f"{missing_columns}"
             )
 
         # Get the feature columns
@@ -130,9 +130,7 @@ class PsmDataset(ABC):
     @property
     def _metadata_columns(self):
         """A list of the metadata columns"""
-        return tuple(
-            c for c in self.data.columns if c not in self._feature_columns
-        )
+        return tuple(c for c in self.data.columns if c not in self._feature_columns)
 
     @property
     def metadata(self):
@@ -262,9 +260,7 @@ class PsmDataset(ABC):
                 best_desc = desc
 
         if best_feat is None:
-            raise RuntimeError(
-                f"No PSMs found below the 'eval_fdr' {eval_fdr}."
-            )
+            raise RuntimeError(f"No PSMs found below the 'eval_fdr' {eval_fdr}.")
 
         return best_feat, best_positives, new_labels, best_desc
 
@@ -491,16 +487,16 @@ class OnDiskPsmDataset:
         self.specId_column = specId_column
         self.spectra_dataframe = spectra_dataframe
 
-        # todo: btw: should not get the filename but a reader object or something, in order to parse other filetypes without if's
+        # todo: btw: should not get the filename but a reader object or something,
+        #     in order to parse other filetypes without if's
         if filename:
-            columns = TabularDataReader.from_path(
-                filename
-            ).get_column_names()
+            columns = TabularDataReader.from_path(filename).get_column_names()
 
             def check_column(column):
                 if column and column not in columns:
                     raise ValueError(
-                        f"Column '{column}' not found in data columns of file '{filename}' ({columns})"
+                        f"Column '{column}' not found in data columns of file"
+                        f" '{filename}' ({columns})"
                     )
 
             def check_columns(columns):
@@ -513,7 +509,9 @@ class OnDiskPsmDataset:
             check_column(self.peptide_column)
             check_column(self.protein_column)
             check_columns(self.spectrum_columns)
-            # check_columns(self.feature_columns)  # fixme: we don't check these for now, otherwise strange things happen
+            # check_columns(self.feature_columns)
+            # fixme: we don't check these for now,
+            #     otherwise strange things happen
             check_columns(self.metadata_columns)
             check_columns(self.level_columns)
             check_column(self.filename_column)
@@ -552,9 +550,7 @@ class OnDiskPsmDataset:
         labels = _update_labels(scores, targets, eval_fdr, desc)
         pos = labels == 1
         if not pos.sum():
-            raise RuntimeError(
-                "No target PSMs were below the 'eval_fdr' threshold."
-            )
+            raise RuntimeError("No target PSMs were below the 'eval_fdr' threshold.")
 
         target_score = np.min(scores[pos])
         decoy_score = np.median(scores[labels == -1])
@@ -612,9 +608,7 @@ class OnDiskPsmDataset:
                 best_desc = desc
 
         if best_feat is None:
-            raise RuntimeError(
-                f"No PSMs found below the 'eval_fdr' {eval_fdr}."
-            )
+            raise RuntimeError(f"No PSMs found below the 'eval_fdr' {eval_fdr}.")
 
         return best_feat, best_positives, new_labels, best_desc
 
@@ -764,9 +758,7 @@ def calibrate_scores(scores, targets, eval_fdr, desc=True):
     labels = _update_labels(scores, targets, eval_fdr, desc)
     pos = labels == 1
     if not pos.sum():
-        raise RuntimeError(
-            "No target PSMs were below the 'eval_fdr' threshold."
-        )
+        raise RuntimeError("No target PSMs were below the 'eval_fdr' threshold.")
 
     target_score = np.min(scores[pos])
     decoy_score = np.median(scores[labels == -1])

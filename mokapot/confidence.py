@@ -16,6 +16,8 @@ We recommend using the :py:func:`~mokapot.brew()` function or the
 confidence estimates, rather than initializing the classes below directly.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from contextlib import contextmanager
@@ -34,7 +36,6 @@ from .utils import (
     groupby_max,
     convert_targets_column,
     merge_sort,
-    map_columns_to_indices,
     get_dataframe_from_records,
 )
 from .dataset import OnDiskPsmDataset
@@ -129,7 +130,8 @@ class Confidence(object):
             The paths to the saved files.
 
         """
-        # The columns here are usually the metadata_columns from confidence.assign_confidence
+        # The columns here are usually the metadata_columns from
+        # `confidence.assign_confidence`
         # which are usually ['PSMId', 'Label', 'peptide', 'proteinIds', 'score']
         # Since, those are exactly the columns that are written there to the csv
         # files, it's not exactly clear, why they are passed along here anyway
@@ -154,9 +156,9 @@ class Confidence(object):
             out_columns.remove(protein_column)
             out_columns.append(protein_column)
 
-        chunked = lambda list: create_chunks(
-            list, chunk_size=CONFIDENCE_CHUNK_SIZE
-        )
+        def chunked(list):
+            return create_chunks(list, chunk_size=CONFIDENCE_CHUNK_SIZE)
+
         # Replacing csv target and decoys results path with sqlite db path
         if sqlite_path:
             out_paths = [sqlite_path]
@@ -186,9 +188,7 @@ class Confidence(object):
         psm_columns : str or list of str
             The columns that define a PSM.
         """
-        psm_idx = groupby_max(
-            psms, psm_columns, self._score_column, rng=self._rng
-        )
+        psm_idx = groupby_max(psms, psm_columns, self._score_column, rng=self._rng)
         return psms.loc[psm_idx, :]
 
     def plot_qvalues(self, level="psms", threshold=0.1, ax=None, **kwargs):
@@ -362,9 +362,7 @@ class LinearConfidence(Confidence):
 
         if self._proteins:
             data = TabularDataReader.from_path(level_paths[1]).read()
-            convert_targets_column(
-                data=data, target_column=self._target_column
-            )
+            convert_targets_column(data=data, target_column=self._target_column)
             proteins = picked_protein(
                 data,
                 self._target_column,
@@ -380,9 +378,7 @@ class LinearConfidence(Confidence):
             assert len(levels) == len(level_paths)
             proteins_path = level_paths[-1]
             proteins.to_csv(proteins_path, index=False, sep=sep)
-            out_paths += [
-                _psms.with_suffix(".proteins") for _psms in out_paths[0]
-            ]
+            out_paths += [_psms.with_suffix(".proteins") for _psms in out_paths[0]]
             LOGGER.info("\t- Found %i unique protein groups.", len(proteins))
 
         for level, data_path, out_path in zip(levels, level_paths, out_paths):
@@ -426,9 +422,7 @@ class LinearConfidence(Confidence):
                 peps_algorithm,
             )
             try:
-                self.peps = peps_from_scores(
-                    self.scores, self.targets, peps_algorithm
-                )
+                self.peps = peps_from_scores(self.scores, self.targets, peps_algorithm)
             except SystemExit as msg:
                 if "no decoy hits available for PEP calculation" in str(msg):
                     self.peps = 0
@@ -566,9 +560,11 @@ def assign_confidence(
     for _psms in psms[1:]:
         assert _psms.columns == curr_psms.columns
 
-    # todo: maybe use a collections.namedtuple for all the level info instead of all the ?
+    # todo: maybe use a collections.namedtuple for all
+    # the level info instead of all the ?
     # from collections import namedtuple
-    # LevelInfo = namedtuple('LevelInfo', ['name', 'data_path', 'deduplicate', 'colnames', 'colindices'])
+    # LevelInfo = namedtuple('LevelInfo',
+    #     ['name', 'data_path', 'deduplicate', 'colnames', 'colindices'])
 
     # Level data for psm level
     level = "psms"
@@ -620,7 +616,8 @@ def assign_confidence(
     for _psms, score, desc, prefix in zip(psms, scores, descs, prefixes):
         out_metadata_columns = [
             "PSMId",
-            _psms.target_column,  # fixme: Why is this the only column where we take the name from the input?
+            # fixme: Why is this the only column where we take the name from the input?
+            _psms.target_column,
             "peptide",
             *extra_output_columns,
             "proteinIds",
@@ -651,18 +648,14 @@ def assign_confidence(
                 output_columns = out_columns_psms_peps
 
             outfile_targets = dest_dir / f"{file_prefix}targets.{level}"
-            writer = TabularDataWriter.from_suffix(
-                outfile_targets, output_columns
-            )
+            writer = TabularDataWriter.from_suffix(outfile_targets, output_columns)
             if not append_to_output_file:
                 writer.initialize()
             out_files[level] = [outfile_targets]
 
             if decoys:
                 outfile_decoys = dest_dir / f"{file_prefix}decoys.{level}"
-                writer = TabularDataWriter.from_suffix(
-                    outfile_decoys, output_columns
-                )
+                writer = TabularDataWriter.from_suffix(outfile_decoys, output_columns)
                 if not append_to_output_file:
                     writer.initialize()
                 out_files[level].append(outfile_decoys)
@@ -675,7 +668,6 @@ def assign_confidence(
             max_workers,
             score,
         ) as sorted_file_iterator:
-
             LOGGER.info("Assigning confidence...")
             LOGGER.info("Performing target-decoy competition...")
             LOGGER.info(
@@ -715,10 +707,7 @@ def assign_confidence(
                 for level in levels:
                     if level != "psms" or deduplication:
                         psm_hash = str(
-                            [
-                                data_row.get(col)
-                                for col in level_hash_columns[level]
-                            ]
+                            [data_row.get(col) for col in level_hash_columns[level]]
                         )
                         if psm_hash in seen_level_entities[level]:
                             if level == "psms":
@@ -751,9 +740,7 @@ def assign_confidence(
                 handles[level].finalize()
                 if level == "psms":
                     if deduplication:
-                        LOGGER.info(
-                            f"\t- Found {count} PSMs from unique spectra."
-                        )
+                        LOGGER.info(f"\t- Found {count} PSMs from unique spectra.")
                     else:
                         LOGGER.info(f"\t- Found {psm_count} PSMs.")
                 else:
@@ -762,9 +749,7 @@ def assign_confidence(
         LinearConfidence(
             psms=_psms,
             levels=levels_or_proteins,
-            level_paths=[
-                level_data_path[level] for level in levels_or_proteins
-            ],
+            level_paths=[level_data_path[level] for level in levels_or_proteins],
             out_paths=[out_files[level] for level in levels_or_proteins],
             eval_fdr=eval_fdr,
             desc=desc,
@@ -824,9 +809,7 @@ def create_sorted_file_iterator(
         )
     )
 
-    scores_metadata_paths = list(
-        dest_dir.glob(f"{file_prefix}scores_metadata_*")
-    )
+    scores_metadata_paths = list(dest_dir.glob(f"{file_prefix}scores_metadata_*"))
     sorted_file_iterator = merge_sort(scores_metadata_paths, score_column="score")
 
     # Return the sorted iterator and clean up afterwards, regardless of whether
@@ -876,9 +859,7 @@ def get_unique_peptides_from_psms(
         line_hash_peptide = line_list[peptide_col_name]
         if line_hash_peptide not in seen_peptide:
             seen_peptide.add(line_hash_peptide)
-            f_peptide.write(
-                f"{sep.join([line_list[key] for key in write_columns])}\n"
-            )
+            f_peptide.write(f"{sep.join([line_list[key] for key in write_columns])}\n")
 
     f_peptide.close()
     return len(seen_peptide)

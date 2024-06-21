@@ -2,6 +2,8 @@
 Defines a function to run the Percolator algorithm.
 """
 
+from __future__ import annotations
+
 import logging
 import copy
 from operator import itemgetter
@@ -31,12 +33,12 @@ LOGGER = logging.getLogger(__name__)
 def brew(
     psms,
     model=None,
-    test_fdr:float=0.01,
-    folds:int=3,
-    max_workers:int=1,
+    test_fdr: float = 0.01,
+    folds: int = 3,
+    max_workers: int = 1,
     rng=None,
-    subset_max_train:int|None=None,
-    ensemble:bool=False,
+    subset_max_train: int | None = None,
+    ensemble: bool = False,
 ):
     """
     Re-score one or more collection of PSMs.
@@ -122,18 +124,12 @@ def brew(
     data_size = [len(_psms.spectra_dataframe) for _psms in psms]
     if sum(data_size) > 1:
         LOGGER.info("Found %i total PSMs.", sum(data_size))
-        num_targets = sum(
-            [
-                (_psms.spectra_dataframe[_psms.target_column]).sum()
-                for _psms in psms
-            ]
-        )
-        num_decoys = sum(
-            [
-                (~_psms.spectra_dataframe[_psms.target_column]).sum()
-                for _psms in psms
-            ]
-        )
+        num_targets = sum([
+            (_psms.spectra_dataframe[_psms.target_column]).sum() for _psms in psms
+        ])
+        num_decoys = sum([
+            (~_psms.spectra_dataframe[_psms.target_column]).sum() for _psms in psms
+        ])
         LOGGER.info(
             "  - %i target PSMs and %i decoy PSMs detected.",
             num_targets,
@@ -331,9 +327,7 @@ def make_train_sets(test_idx, subset_max_train, data_size, rng):
             ds = data_size[file_idx]
             k = 0
             while k + chunk_range < ds:
-                train_idx[file_idx] += list(
-                    set(range(k, k + chunk_range)) - set(idx)
-                )
+                train_idx[file_idx] += list(set(range(k, k + chunk_range)) - set(idx))
                 k += chunk_range
             train_idx[file_idx] += list(set(range(k, ds)) - set(idx))
             train_idx_size += len(train_idx[file_idx])
@@ -345,9 +339,7 @@ def make_train_sets(test_idx, subset_max_train, data_size, rng):
                 train_idx_size,
                 subset_max_train,
             )
-            for i, current_subset_max_train in enumerate(
-                subset_max_train_per_file
-            ):
+            for i, current_subset_max_train in enumerate(subset_max_train_per_file):
                 if current_subset_max_train < train_idx_size:
                     train_idx[i] = rng.choice(
                         train_idx[i], current_subset_max_train, replace=False

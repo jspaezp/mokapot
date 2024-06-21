@@ -45,24 +45,16 @@ def test_determinism_same_file(tmp_path, psm_files_4000):
     df_run2_t_psms = pd.read_csv(tmp_path / "run2.targets.psms", sep="\t")
     pd.testing.assert_frame_equal(df_run1_t_psms, df_run2_t_psms)
 
-    df_run1_t_peptides = pd.read_csv(
-        tmp_path / "run1.targets.peptides", sep="\t"
-    )
-    df_run2_t_peptides = pd.read_csv(
-        tmp_path / "run2.targets.peptides", sep="\t"
-    )
+    df_run1_t_peptides = pd.read_csv(tmp_path / "run1.targets.peptides", sep="\t")
+    df_run2_t_peptides = pd.read_csv(tmp_path / "run2.targets.peptides", sep="\t")
     pd.testing.assert_frame_equal(df_run1_t_peptides, df_run2_t_peptides)
 
     df_run1_d_psms = pd.read_csv(tmp_path / "run1.decoys.psms", sep="\t")
     df_run2_d_psms = pd.read_csv(tmp_path / "run2.decoys.psms", sep="\t")
     pd.testing.assert_frame_equal(df_run1_d_psms, df_run2_d_psms)
 
-    df_run1_d_peptides = pd.read_csv(
-        tmp_path / "run1.decoys.peptides", sep="\t"
-    )
-    df_run2_d_peptides = pd.read_csv(
-        tmp_path / "run2.decoys.peptides", sep="\t"
-    )
+    df_run1_d_peptides = pd.read_csv(tmp_path / "run1.decoys.peptides", sep="\t")
+    df_run2_d_peptides = pd.read_csv(tmp_path / "run2.decoys.peptides", sep="\t")
     pd.testing.assert_frame_equal(df_run1_d_peptides, df_run2_d_peptides)
 
 
@@ -96,20 +88,20 @@ def test_determinism_different_psmid(tmp_path, psm_files_4000):
     assert Path(tmp_path, "run2.targets.psms").exists()
     assert Path(tmp_path, "run2.decoys.psms").exists()
 
-    df_run1_t_psms = pd.read_csv(
-        tmp_path / "run1.targets.psms", sep="\t"
-    ).drop("PSMId", axis=1)
-    df_run2_t_psms = pd.read_csv(
-        tmp_path / "run2.targets.psms", sep="\t"
-    ).drop("PSMId", axis=1)
+    df_run1_t_psms = pd.read_csv(tmp_path / "run1.targets.psms", sep="\t").drop(
+        "PSMId", axis=1
+    )
+    df_run2_t_psms = pd.read_csv(tmp_path / "run2.targets.psms", sep="\t").drop(
+        "PSMId", axis=1
+    )
     pd.testing.assert_frame_equal(df_run1_t_psms, df_run2_t_psms)
 
-    df_run1_t_peptides = pd.read_csv(
-        tmp_path / "run1.targets.peptides", sep="\t"
-    ).drop("PSMId", axis=1)
-    df_run2_t_peptides = pd.read_csv(
-        tmp_path / "run2.targets.peptides", sep="\t"
-    ).drop("PSMId", axis=1)
+    df_run1_t_peptides = pd.read_csv(tmp_path / "run1.targets.peptides", sep="\t").drop(
+        "PSMId", axis=1
+    )
+    df_run2_t_peptides = pd.read_csv(tmp_path / "run2.targets.peptides", sep="\t").drop(
+        "PSMId", axis=1
+    )
     pd.testing.assert_frame_equal(df_run1_t_peptides, df_run2_t_peptides)
 
     df_run1_d_psms = pd.read_csv(tmp_path / "run1.decoys.psms", sep="\t").drop(
@@ -120,10 +112,10 @@ def test_determinism_different_psmid(tmp_path, psm_files_4000):
     )
     pd.testing.assert_frame_equal(df_run1_d_psms, df_run2_d_psms)
 
-    df_run1_d_peptides = pd.read_csv(
-        tmp_path / "run1.decoys.peptides", sep="\t"
-    ).drop("PSMId", axis=1)
-    df_run2_d_peptides = pd.read_csv(
-        tmp_path / "run2.decoys.peptides", sep="\t"
-    ).drop("PSMId", axis=1)
+    df_run1_d_peptides = pd.read_csv(tmp_path / "run1.decoys.peptides", sep="\t").drop(
+        "PSMId", axis=1
+    )
+    df_run2_d_peptides = pd.read_csv(tmp_path / "run2.decoys.peptides", sep="\t").drop(
+        "PSMId", axis=1
+    )
     pd.testing.assert_frame_equal(df_run1_d_peptides, df_run2_d_peptides)

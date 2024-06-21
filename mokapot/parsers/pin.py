@@ -7,7 +7,6 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 from joblib import Parallel, delayed
 
 from .helpers import find_optional_column, find_columns, find_required_column
@@ -376,18 +375,14 @@ def parse_in_chunks(psms, train_idx, chunk_size, max_workers):
         list of dataframes
     """
 
-    train_psms = [
-        [[] for _ in range(len(train_idx))] for _ in range(len(psms))
-    ]
+    train_psms = [[[] for _ in range(len(train_idx))] for _ in range(len(psms))]
     for _psms, idx, file_idx in zip(psms, zip(*train_idx), range(len(psms))):
         reader = TabularDataReader.from_path(_psms.filename)
         file_iterator = reader.get_chunked_data_iterator(
             chunk_size=chunk_size, columns=_psms.columns
         )
         Parallel(n_jobs=max_workers, require="sharedmem")(
-            delayed(get_rows_from_dataframe)(
-                idx, chunk, train_psms, _psms, file_idx
-            )
+            delayed(get_rows_from_dataframe)(idx, chunk, train_psms, _psms, file_idx)
             for chunk in file_iterator
         )
     train_psms_reordered = Parallel(n_jobs=max_workers, require="sharedmem")(

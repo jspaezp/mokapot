@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import sqlite3
 import warnings
 from contextlib import contextmanager
 from enum import Enum
-from typing import Generator, List
+from typing import Generator
 
 import numpy as np
 import pandas as pd
@@ -10,7 +12,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import pyarrow.parquet as pq
 from typeguard import typechecked
-from numpy import dtype
 import pyarrow as pa
 
 CSV_SUFFIXES = [
@@ -28,6 +29,7 @@ CSV_SUFFIXES = [
 ]
 PARQUET_SUFFIXES = [".parquet"]
 SQLITE_SUFFIXES = [".db"]
+
 
 class TableType(Enum):
     DataFrame = "DataFrame"
@@ -253,9 +255,7 @@ class ParquetFileReader(TabularDataReader):
     ) -> Generator[pd.DataFrame, None, None]:
         pf = pq.ParquetFile(self.file_name)
 
-        for i, record_batch in enumerate(
-            pf.iter_batches(chunk_size, columns=columns)
-        ):
+        for i, record_batch in enumerate(pf.iter_batches(chunk_size, columns=columns)):
             df = record_batch.to_pandas()
             df.index = df.index + i * chunk_size
             yield df
@@ -300,7 +300,8 @@ class TabularDataWriter(ABC):
             # column_types = _types_from_dataframe(data)
             # if not column_types == self.get_column_types():
             #     raise ValueError(
-            #         f"Column types {column_types} do not match {self.get_column_types()}"
+            #         f"Column types {column_types} do "
+            #         f"not match {self.get_column_types()}"
             #     )
 
     def write(self, data: pd.DataFrame):
@@ -328,7 +329,11 @@ class TabularDataWriter(ABC):
 
     @staticmethod
     def from_suffix(
-        file_name: Path, columns: list[str], buffer_size: int = 0, buffer_type: TableType = TableType.DataFrame, **kwargs
+        file_name: Path,
+        columns: list[str],
+        buffer_size: int = 0,
+        buffer_type: TableType = TableType.DataFrame,
+        **kwargs,
     ) -> "TabularDataWriter":
         suffix = file_name.suffix
         if suffix in CSV_SUFFIXES:
@@ -367,7 +372,6 @@ def auto_finalize(writers: list[TabularDataWriter]):
 
 @typechecked
 class BufferedWriter(TabularDataWriter):
-
     writer: TabularDataWriter
     buffer_size: int
     buffer_type: TableType
@@ -376,8 +380,8 @@ class BufferedWriter(TabularDataWriter):
     def __init__(
         self,
         writer: TabularDataWriter,
-        buffer_size = 1000,
-        buffer_type = TableType.DataFrame,
+        buffer_size=1000,
+        buffer_type=TableType.DataFrame,
     ):
         super().__init__(writer.columns, writer.column_types)
         self.writer = writer
@@ -385,7 +389,12 @@ class BufferedWriter(TabularDataWriter):
         self.buffer_type = buffer_type
         self.buffer = None
 
-    def _buffer_slice(self, start: int = 0, end: int | None = None, as_dataframe: bool = False):
+    def _buffer_slice(
+        self,
+        start: int = 0,
+        end: int | None = None,
+        as_dataframe: bool = False,
+    ):
         if self.buffer_type == TableType.DataFrame:
             slice = self.buffer.iloc[start:end]
         else:
@@ -395,22 +404,26 @@ class BufferedWriter(TabularDataWriter):
         else:
             return slice
 
-
     def _write_buffer(self, force=False):
         if self.buffer is None:
             return
         while len(self.buffer) >= self.buffer_size:
-            self.writer.append_data(self._buffer_slice(end=self.buffer_size, as_dataframe=True))
-            self.buffer = self._buffer_slice(start=self.buffer_size, )
+            self.writer.append_data(
+                self._buffer_slice(end=self.buffer_size, as_dataframe=True)
+            )
+            self.buffer = self._buffer_slice(
+                start=self.buffer_size,
+            )
         if force and len(self.buffer) > 0:
             self.writer.append_data(self._buffer_slice(as_dataframe=True))
             self.buffer = None
 
     def append_data(self, data: pd.DataFrame | dict | list[dict] | np.record):
-
         if self.buffer_type == TableType.DataFrame:
             if not isinstance(data, pd.DataFrame):
-               raise TypeError(f"Parameter data must be of type DataFrame, not {type(data)}")
+                raise TypeError(
+                    f"Parameter data must be of type DataFrame, not {type(data)}"
+                )
 
             if self.buffer is None:
                 self.buffer = data.copy(deep=True)
@@ -427,7 +440,7 @@ class BufferedWriter(TabularDataWriter):
                 self.buffer = np.recarray(shape=(0,), dtype=data.dtype)
             self.buffer = np.append(self.buffer, data)
         else:
-            raise RuntimeError(f"Not yet done...")
+            raise RuntimeError("Not yet done...")
 
         self._write_buffer()
 
@@ -450,7 +463,6 @@ class BufferedWriter(TabularDataWriter):
 
 @typechecked
 class CSVFileWriter(TabularDataWriter):
-
     file_name: Path
 
     def __init__(
@@ -468,9 +480,7 @@ class CSVFileWriter(TabularDataWriter):
         return f"CSVFileWriter({self.file_name=},{self.columns=})"
 
     def __repr__(self):
-        return (
-            f"CSVFileWriter({self.file_name=},{self.columns=},{self.stdargs=})"
-        )
+        return f"CSVFileWriter({self.file_name=},{self.columns=},{self.stdargs=})"
 
     def get_schema(self, as_dict: bool = True):
         schema = []
@@ -497,7 +507,6 @@ class CSVFileWriter(TabularDataWriter):
 
 @typechecked
 class ParquetFileWriter(TabularDataWriter):
-
     file_name: Path
 
     def __init__(
@@ -524,9 +533,7 @@ class ParquetFileWriter(TabularDataWriter):
         return pa.schema(schema)
 
     def initialize(self):
-        self.writer = pq.ParquetWriter(
-            self.file_name, schema=self.get_schema()
-        )
+        self.writer = pq.ParquetWriter(self.file_name, schema=self.get_schema())
 
     def finalize(self):
         self.writer.close()
@@ -546,7 +553,6 @@ class ParquetFileWriter(TabularDataWriter):
 
 @typechecked
 class SqliteWriter(TabularDataWriter, ABC):
-
     connection: sqlite3.Connection
 
     def __init__(

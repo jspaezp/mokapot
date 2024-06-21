@@ -38,9 +38,7 @@ def picked_protein(
     keep = [target_column, peptide_column, score_column]
 
     # Trim the dataframe
-    prots = peptides.loc[:, keep].rename(
-        columns={peptide_column: "best peptide"}
-    )
+    prots = peptides.loc[:, keep].rename(columns={peptide_column: "best peptide"})
 
     prots["stripped sequence"] = strip_peptides(prots["best peptide"])
 
@@ -62,9 +60,7 @@ def picked_protein(
         unmatched[~prots[target_column]] = False
 
     unmatched_prots = prots.loc[unmatched, :]
-    shared = unmatched_prots["stripped sequence"].isin(
-        proteins.shared_peptides.keys()
-    )
+    shared = unmatched_prots["stripped sequence"].isin(proteins.shared_peptides.keys())
 
     shared_unmatched = (~shared).sum()
     num_shared = len(shared) - shared_unmatched
@@ -205,7 +201,5 @@ def group_without_decoys(peptides, target_column, proteins):
 
     # First lookup targets:
     prots = peptides["stripped sequence"].map(proteins.peptide_map.get)
-    prots[prots.isna()] = peptides[prots.isna()]["stripped sequence"].map(
-        decoy_map.get
-    )
+    prots[prots.isna()] = peptides[prots.isna()]["stripped sequence"].map(decoy_map.get)
     return prots

@@ -2,6 +2,8 @@
 This is the command line interface for mokapot
 """
 
+from __future__ import annotations
+
 import datetime
 import logging
 import sys
@@ -11,12 +13,10 @@ from argparse import _ArgumentGroup as ArgumentGroup
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pyarrow as pa
-from typeguard import typechecked, TypeCheckError
+from typeguard import typechecked
 
 from mokapot.streaming import (
-    merge_readers,
     MergedTabularDataReader,
     ComputedTabularDataReader,
 )
@@ -124,7 +124,8 @@ def add_confidence_options(parser: ArgumentGroup) -> None:
         default="tdc",
         choices=["tdc", "from_peps", "from_counts"],
         help=(
-            "Specify the algorithm for qvalue computation. `tdc is` the default mokapot algorithm."
+            "Specify the algorithm for qvalue computation. `tdc is` "
+            "the default mokapot algorithm."
         ),
     )
 
@@ -182,9 +183,7 @@ def output_start_message(prog_name, config):
     start_time = time.time()
     logging.info(f"{prog_name} version {__version__}")
     logging.info("Written by William E. Fondrie (wfondrie@uw.edu) in the")
-    logging.info(
-        "Department of Genome Sciences at the University of Washington."
-    )
+    logging.info("Department of Genome Sciences at the University of Washington.")
     logging.info("Command issued:")
     logging.info("  %s", " ".join(sys.argv))
     logging.info("")
@@ -265,7 +264,8 @@ def do_rollup(config):
     if len(list(src_dir.glob(f"*.{base_level}s.parquet"))) > 0:
         if len(list(src_dir.glob(f"*.{base_level}s"))) > 0:
             raise RuntimeError(
-                f"Only input files of either type CSV or type Parquet should exist in '{src_dir}', but both types were found."
+                "Only input files of either type CSV or type Parquet should exist"
+                f" in '{src_dir}', but both types were found."
             )
         suffix = ".parquet"
         dtype = pa.bool_()
@@ -273,18 +273,12 @@ def do_rollup(config):
         suffix = ""
         dtype = np.dtype("bool")
 
-    target_files: list[Path] = sorted(
-        src_dir.glob(f"*.targets.{base_level}s{suffix}")
-    )
-    decoy_files: list[Path] = sorted(
-        src_dir.glob(f"*.decoys.{base_level}s{suffix}")
-    )
+    target_files: list[Path] = sorted(src_dir.glob(f"*.targets.{base_level}s{suffix}"))
+    decoy_files: list[Path] = sorted(src_dir.glob(f"*.decoys.{base_level}s{suffix}"))
     target_files = [
         file for file in target_files if not file.name.startswith(file_root)
     ]
-    decoy_files = [
-        file for file in decoy_files if not file.name.startswith(file_root)
-    ]
+    decoy_files = [file for file in decoy_files if not file.name.startswith(file_root)]
     in_files: list[Path] = sorted(target_files + decoy_files)
     logging.info(f"Reading files: {[str(file) for file in in_files]}")
     # todo: message if no input files found
@@ -313,7 +307,9 @@ def do_rollup(config):
         for path in decoy_files
     ]
     reader = MergedTabularDataReader(
-        target_readers + decoy_readers, priority_column="score", reader_chunk_size=10000
+        target_readers + decoy_readers,
+        priority_column="score",
+        reader_chunk_size=10000,
     )
 
     # Determine out levels
@@ -324,17 +320,15 @@ def do_rollup(config):
     levels = [level for level in levels if level in reader.get_column_names()]
     logging.info(f"Rolling up to levels: {levels}")
     if len(levels_not_found) > 0:
-        logging.info(
-            f"  (Rollup levels not found in input: {levels_not_found})"
-        )
+        logging.info(f"  (Rollup levels not found in input: {levels_not_found})")
 
     # Determine temporary files
     temp_files = {
-        level: dest_dir / f"{file_root}temp.{level}s{suffix}"
-        for level in levels
+        level: dest_dir / f"{file_root}temp.{level}s{suffix}" for level in levels
     }
     logging.debug(
-        f"Using temp files: { {level: str(file) for level, file in temp_files.items()} }"
+        "Using temp files: "
+        f"{ {level: str(file) for level, file in temp_files.items()} }"
     )
 
     # Determine output files
@@ -346,7 +340,8 @@ def do_rollup(config):
         for level in levels
     }
     logging.debug(
-        f"Writing to files: { {level: list(map(str, files)) for level, files in out_files.items()} }"
+        "Writing to files: "
+        f"{ {level: list(map(str, files)) for level, files in out_files.items()} }"
     )
 
     # Determine columns for output files and intermediate files
@@ -402,9 +397,7 @@ def do_rollup(config):
         logging.info(f"Read {count} PSMs")
         for level in levels:
             seen = seen_entities[level]
-            logging.info(
-                f"Rollup level {level}: found {len(seen)} unique entities"
-            )
+            logging.info(f"Rollup level {level}: found {len(seen)} unique entities")
 
     # Configure temp readers and output writers
     buffer_size = 1000
@@ -416,9 +409,9 @@ def do_rollup(config):
         column_types=output_types,
         buffer_size=buffer_size,
     )
-    create_writer = lambda path: TabularDataWriter.from_suffix(
-        path, **output_options
-    )
+
+    def create_writer(path):
+        return TabularDataWriter.from_suffix(path, **output_options)
 
     for level in levels:
         reader = temp_writers[level].get_associated_reader()
@@ -430,9 +423,7 @@ def do_rollup(config):
         scores = data["score"].values
         targets = ~data["is_decoy"].values
 
-        qvals = qvalues.qvalues_from_scores(
-            scores, targets, config.qvalue_algorithm
-        )
+        qvals = qvalues.qvalues_from_scores(scores, targets, config.qvalue_algorithm)
         peps = peps_from_scores(scores, targets, config.peps_algorithm)
 
         data["q_value"] = qvals

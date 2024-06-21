@@ -1,8 +1,9 @@
-from typing import Generator, Callable, Iterator, Type
+from __future__ import annotations
+
+from typing import Generator, Callable, Iterator
 
 import pandas as pd
 import numpy as np
-from numpy import dtype
 from typeguard import typechecked
 import pyarrow as pa
 
@@ -22,9 +23,7 @@ class JoinedTabularDataReader(TabularDataReader):
     def get_column_types(self) -> list:
         return sum([reader.get_column_types() for reader in self.readers], [])
 
-    def _subset_columns(
-        self, column_names: list[str] | None
-    ) -> list[list[str] | None]:
+    def _subset_columns(self, column_names: list[str] | None) -> list[list[str] | None]:
         if column_names is None:
             return [None for _ in self.readers]
         return [
@@ -41,9 +40,7 @@ class JoinedTabularDataReader(TabularDataReader):
         df = pd.concat(
             [
                 reader.read(columns=subset_columns)
-                for reader, subset_columns in zip(
-                    self.readers, subset_column_lists
-                )
+                for reader, subset_columns in zip(self.readers, subset_column_lists)
             ],
             axis=1,
         )
@@ -57,9 +54,7 @@ class JoinedTabularDataReader(TabularDataReader):
             reader.get_chunked_data_iterator(
                 chunk_size=chunk_size, columns=subset_columns
             )
-            for reader, subset_columns in zip(
-                self.readers, subset_column_lists
-            )
+            for reader, subset_columns in zip(self.readers, subset_column_lists)
         ]
 
         while True:
@@ -73,7 +68,6 @@ class JoinedTabularDataReader(TabularDataReader):
 
 @typechecked
 class ComputedTabularDataReader(TabularDataReader):
-
     def __init__(
         self,
         reader: TabularDataReader,
@@ -136,7 +130,8 @@ class MergedTabularDataReader(TabularDataReader):
         self.column_names = readers[0].get_column_names()
         self.column_types = readers[0].get_column_types()
 
-        # todo: all those asserts should raise an exception, could happen in production too
+        # todo: all those asserts should raise an exception,
+        #   could happen in production too
         for reader in readers:
             assert (
                 reader.get_column_names() == self.column_names
@@ -144,9 +139,7 @@ class MergedTabularDataReader(TabularDataReader):
             assert (
                 reader.get_column_types() == self.column_types
             ), "Column types do not match"
-        assert (
-            priority_column in self.column_names
-        ), "Priority column not found"
+        assert priority_column in self.column_names, "Priority column not found"
 
     def get_column_names(self) -> list[str]:
         return self.column_names
@@ -154,25 +147,24 @@ class MergedTabularDataReader(TabularDataReader):
     def get_column_types(self) -> list:
         return self.column_types
 
-
-
     def get_row_iterator(
         self,
         columns: list[str] | None = None,
-        row_type: TableType = TableType.DataFrame
-    ) -> Iterator[pd.DataFrame|dict|np.record]:
-
+        row_type: TableType = TableType.DataFrame,
+    ) -> Iterator[pd.DataFrame | dict | np.record]:
         def iterate_over_df(df: pd.DataFrame) -> Iterator:
             for i in range(len(df)):
                 row = df.iloc[[i]]
                 row.index = [0]
                 yield row
+
         def get_value_df(row, col):
             return row[col].iloc[0]
 
         def iterate_over_dicts(df: pd.DataFrame) -> Iterator:
             dict = df.to_dict(orient="records")
             return iter(dict)
+
         def get_value_dict(row, col):
             return row[col]
 
@@ -190,7 +182,9 @@ class MergedTabularDataReader(TabularDataReader):
             iterate_over_chunk = iterate_over_records
             get_value = get_value_dict
         else:
-            raise ValueError(f"ret_type must be 'dataframe' or 'records' or 'dicts', not {row_type}")
+            raise ValueError(
+                f"ret_type must be 'dataframe' or 'records' or 'dicts', not {row_type}"
+            )
 
         def row_iterator_from_chunked(chunked_iter: Iterator) -> Iterator:
             for chunk in chunked_iter:
@@ -198,14 +192,14 @@ class MergedTabularDataReader(TabularDataReader):
                     yield row
 
         row_iterators = [
-            row_iterator_from_chunked(reader.get_chunked_data_iterator(
-                chunk_size=self.reader_chunk_size, columns=columns
-            ))
+            row_iterator_from_chunked(
+                reader.get_chunked_data_iterator(
+                    chunk_size=self.reader_chunk_size, columns=columns
+                )
+            )
             for reader in self.readers
         ]
-        current_rows = [
-            next(row_iterator) for row_iterator in row_iterators
-        ]
+        current_rows = [next(row_iterator) for row_iterator in row_iterators]
 
         values = [get_value(row, self.priority_column) for row in current_rows]
         while len(row_iterators):
@@ -219,14 +213,18 @@ class MergedTabularDataReader(TabularDataReader):
 
             try:
                 current_rows[iterator_index] = next(row_iterators[iterator_index])
-                new_value = get_value(current_rows[iterator_index], self.priority_column)
+                new_value = get_value(
+                    current_rows[iterator_index], self.priority_column
+                )
                 if self.descending and new_value > values[iterator_index]:
                     raise ValueError(
-                        f"Value {new_value} exceeds {self.priority_column} but should be descending"
+                        f"Value {new_value} exceeds {self.priority_column}"
+                        " but should be descending"
                     )
                 if not self.descending and new_value < values[iterator_index]:
                     raise ValueError(
-                        f"Value {new_value} lower than {self.priority_column} but should be ascending"
+                        f"Value {new_value} lower than {self.priority_column}"
+                        " but should be ascending"
                     )
 
                 values[iterator_index] = new_value
@@ -235,11 +233,9 @@ class MergedTabularDataReader(TabularDataReader):
                 del current_rows[iterator_index]
                 del values[iterator_index]
 
-
     def get_chunked_data_iterator(
         self, chunk_size: int, columns: list[str] | None = None
     ) -> Generator[pd.DataFrame, None, None]:
-
         row_iterator = self.get_row_iterator(columns=columns)
         finished = False
         rows = []

@@ -10,12 +10,14 @@ from typeguard import TypeCheckError
 
 from mokapot.mokapot import main as mokapot_main
 
+
 @contextlib.contextmanager
 def catch_type_check():
     """
     Catch Type Check
 
-    Context manager that catches TypeCheckError exceptions and prints detailed error information.
+    Context manager that catches TypeCheckError exceptions and prints detailed error
+    information.
 
     Usage:
     ------
@@ -25,21 +27,26 @@ def catch_type_check():
     try:
         yield None
     except TypeCheckError as e:
-        import traceback, sys
-        print("\n\nTypeCheckError: ", end="")
+        import traceback
+
+        logging.error("\n\nTypeCheckError: ", end="")
         # Print the exception with the stack trace excluding the last
         # entries which stem from the typeguard module
         frames = traceback.extract_tb(e.__traceback__)
-        entries_to_print = sum(1 for frame in frames
-                               if not "typeguard" in frame.filename)
+        entries_to_print = sum(
+            1 for frame in frames if "typeguard" not in frame.filename
+        )
         traceback.print_exception(e, limit=entries_to_print)
         raise
 
 
-
-def _run_cli(module: str, main_func: Callable, params: List[Any],
-             run_in_subprocess: Optional[bool] = None,
-             capture_output: bool = False) -> Optional[Dict[str, str]]:
+def _run_cli(
+    module: str,
+    main_func: Callable,
+    params: List[Any],
+    run_in_subprocess: Optional[bool] = None,
+    capture_output: bool = False,
+) -> Optional[Dict[str, str]]:
     """
     Parameters
     ----------
@@ -62,8 +69,8 @@ def _run_cli(module: str, main_func: Callable, params: List[Any],
         `capture_output` is True. Otherwise, returns None.
     """
     if run_in_subprocess is None:
-        value = os.environ.get('TEST_CLI_IN_SUBPROCESS', 'true')
-        run_in_subprocess = value.lower() in ['true', 'yes', 'y', '1']
+        value = os.environ.get("TEST_CLI_IN_SUBPROCESS", "true")
+        run_in_subprocess = value.lower() in ["true", "yes", "y", "1"]
     else:
         run_in_subprocess = bool(run_in_subprocess)
 
@@ -73,11 +80,15 @@ def _run_cli(module: str, main_func: Callable, params: List[Any],
         try:
             res = subprocess.run(cmd, check=True, capture_output=capture_output)
         except subprocess.CalledProcessError as e:
-            logging.error(f"Calling {module} with params {params} failed\nStderr: {e.stderr}")
+            logging.error(
+                f"Calling {module} with params {params} failed\nStderr: {e.stderr}"
+            )
             raise RuntimeError(f"Calling {module} with params {params} failed") from e
         if capture_output:
-            return {'stdout': res.stdout.decode(),
-                    'stderr': res.stderr.decode()}
+            return {
+                "stdout": res.stdout.decode(),
+                "stderr": res.stderr.decode(),
+            }
     elif capture_output:
         stdout_sink = io.StringIO()
         stderr_sink = io.StringIO()
@@ -91,15 +102,16 @@ def _run_cli(module: str, main_func: Callable, params: List[Any],
         with redirect_stderr(stderr_sink), redirect_stdout(stdout_sink):
             with catch_type_check():
                 main_func(params)
-        return {'stdout': stdout_sink.getvalue(),
-                'stderr': stderr_sink.getvalue()}
+        return {
+            "stdout": stdout_sink.getvalue(),
+            "stderr": stderr_sink.getvalue(),
+        }
     else:
         with catch_type_check():
             main_func(params)
 
 
-def run_mokapot_cli(params: List[Any], run_in_subprocess=None,
-                    capture_output=False):
+def run_mokapot_cli(params: List[Any], run_in_subprocess=None, capture_output=False):
     """
     Run the mokapot command either in a subprocess or as direct
     call to the main function.
@@ -120,5 +132,10 @@ def run_mokapot_cli(params: List[Any], run_in_subprocess=None,
     capture_output : bool, default: False
         Determines whether to capture the stdout and stderr output.
     """
-    return _run_cli("mokapot.mokapot", mokapot_main, params,
-                    run_in_subprocess, capture_output)
+    return _run_cli(
+        "mokapot.mokapot",
+        mokapot_main,
+        params,
+        run_in_subprocess,
+        capture_output,
+    )
