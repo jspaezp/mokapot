@@ -17,11 +17,13 @@ One of more instance of this class are required to use the
 
 """
 
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from zlib import crc32
-from typing import overload, Generator
+from typing import Generator, Hashable
 from dataclasses import dataclass
 
 import numpy as np
@@ -30,6 +32,7 @@ from typeguard import typechecked
 
 from mokapot import qvalues
 from mokapot import utils
+from mokapot.column_defs import ColumnGroups, OptionalColumns
 from .tabular_data import TabularDataReader, DataFrameReader
 
 LOGGER = logging.getLogger(__name__)
@@ -39,35 +42,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class OptionalColumns:
-    """Helper class meant to store the optional columns from a dataset.
-
-    It is used internally to pass the columns to places like the flashlfq
-    formatter, which needs columns that are not inherently associated with
-    the scoring process.
-    """
-
-    filename: str | None
-    scan: str | None
-    calcmass: str | None
-    expmass: str | None
-    rt: str | None
-    charge: str | None
-
-    def as_dict(self):
-        return {
-            "filename": self.filename,
-            "scan": self.scan,
-            "calcmass": self.calcmass,
-            "expmass": self.expmass,
-            "rt": self.rt,
-            "charge": self.charge,
-        }
-
-
-@dataclass
 class BestFeatureProperties:
-    name: str
+    name: str | Hashable
     positives: int
     fdr: float
     descending: bool
@@ -105,50 +81,52 @@ class PsmDataset(ABC):
         """Set the random number generator"""
         self._rng = np.random.default_rng(rng)
 
-    @abstractmethod
-    def get_optional_columns(self) -> OptionalColumns:
-        """Return a dictionary of optional columns and their names.
+    def get_column_names(self) -> tuple[str, ...]:
+        """Return all columns available in the dataset."""
+        return self.column_groups.columns
 
-        These should be
+    @property
+    def columns(self) -> list[str]:
+        """Return all columns available in the dataset."""
+        return list(self.column_groups.columns)
+
+    @property
+    def feature_columns(self) -> tuple[str, ...]:
+        """Return the feature columns.
+
+        These are the columns that can be used to train models
+        or used directly as confidence estimates. Classically
+        this will be columns like search engine scores, one hot
+        encoded charges, etc.
         """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_column_names(self) -> list[str]:
-        raise NotImplementedError
+        return self.column_groups.feature_columns
 
     @property
-    @abstractmethod
-    def feature_columns(self) -> list[str]:
-        raise NotImplementedError
+    def metadata_columns(self) -> tuple[str, ...]:
+        """Returns all columns that are not features in a dataset."""
+        # TODO: Move this to the column groups
+        feats = self.feature_columns
+        return tuple(c for c in self.get_column_names() if c not in feats)
 
     @property
-    @abstractmethod
-    def metadata_columns(self) -> list[str]:
-        """A list of the metadata columns.
-
-        Meant to be all non-feature columns in a dataset.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def reader(self) -> TabularDataReader:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def level_columns(self) -> list[str]:
+    def confidence_level_columns(self) -> tuple[str, ...]:
         """Return the column names that can be used as levels.
 
         The levels are the multiple levels at which the data can be
         aggregated. For example, peptides, modified peptides, precursors,
         and peptide groups are levels.
         """
-        # In the undocumented reference it is defined like so:
-        # level_columns = [peptides] + modifiedpeptides + precursors +
-        #     peptidegroups
+        use = [self.peptide_column] + list(self.extra_confidence_level_columns)
+        return utils.tuplize(use)
+
+    @property
+    @abstractmethod
+    def column_groups(self) -> ColumnGroups:
         raise NotImplementedError
+
+    @property
+    def extra_confidence_level_columns(self) -> tuple[str, ...]:
+        return self.column_groups.extra_confidence_level_columns
 
     @property
     @abstractmethod
@@ -161,13 +139,28 @@ class PsmDataset(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
-    def spectrum_columns(self) -> list[str]:
+    def spectrum_columns(self) -> tuple[str, ...]:
         """Return the spectrum columns.
 
-        The spectrum columns are the columns that uniquely identify a mass
-        spectrum AND the label.
+        The spectrum columns are the columns that uniquely identify a
+        mass spectrum.
+
+        Within mokapot these are the elements that will compete with each
+        other in the confidence estimation process.
         """
+        return self.column_groups.spectrum_columns
+
+    @property
+    def target_column(self) -> str:
+        return self.column_groups.target_column
+
+    @property
+    def peptide_column(self) -> str:
+        return self.column_groups.peptide_column
+
+    @property
+    @abstractmethod
+    def reader(self) -> TabularDataReader:
         raise NotImplementedError
 
     @abstractmethod
@@ -177,36 +170,8 @@ class PsmDataset(ABC):
         Returns the default extension used as an output
         for this type of reader.
         """
+        # TODO: Move this to the writers.
         raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def specId_column(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def target_column(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def peptide_column(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def peptides(self) -> pd.Series:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def protein_column(self) -> str | None:
-        pass
-
-    @property
-    def filename_column(self) -> str | None:
-        return self._filename_column
 
     @abstractmethod
     def _split(self, folds, rng):
@@ -232,21 +197,19 @@ class PsmDataset(ABC):
 
         raise NotImplementedError
 
-    @overload
-    def read_data(
-        self, columns: list[str] | None, chunk_size: None
-    ) -> pd.DataFrame: ...
-
-    @overload
-    def read_data(
-        self,
-        columns: list[str] | None,
-        chunk_size: int,
-    ) -> Generator[pd.DataFrame, None, None]: ...
-
     @abstractmethod
     def read_data(
-        self, columns: list[str] | None = None, chunk_size: int | None = None
+        self,
+        columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_data_chunked(
+        self,
+        *,
+        chunk_size: int,
+        columns: list[str] | None = None,
     ) -> pd.DataFrame | Generator[pd.DataFrame, None, None]:
         raise NotImplementedError
 
@@ -350,75 +313,15 @@ class LinearPsmDataset(PsmDataset):
     def __init__(
         self,
         psms,
-        target_column,
-        spectrum_columns,
-        peptide_column,
-        protein_column=None,
-        feature_columns=None,
-        filename_column=None,
-        scan_column=None,
-        calcmass_column=None,
-        expmass_column=None,
-        rt_column=None,
-        charge_column=None,
-        copy_data=True,
-        rng=None,
-        enforce_checks=True,
+        column_groups: ColumnGroups,
+        copy_data: bool = True,
+        rng: int | np.random.Generator | None = None,
+        enforce_checks: bool = True,
     ):
         """Initialize a LinearPsmDataset object."""
         super().__init__(rng=rng)
         self._data = psms.copy(deep=copy_data).reset_index(drop=True)
-
-        self._target_column = target_column
-        self._peptide_column = peptide_column
-        self._protein_column = protein_column
-
-        self.optional_columns = OptionalColumns(
-            filename=filename_column,
-            scan=scan_column,
-            calcmass=calcmass_column,
-            expmass=expmass_column,
-            rt=rt_column,
-            charge=charge_column,
-        )
-
-        # Finish initialization
-        other_columns = [target_column, peptide_column]
-        if protein_column is not None:
-            other_columns.append(protein_column)
-
-        for _, opt_column in self.optional_columns.as_dict().items():
-            if opt_column is not None:
-                other_columns.append(opt_column)
-
-        # Set columns
-        self._spectrum_columns = utils.tuplize(spectrum_columns)
-
-        if other_columns is not None:
-            other_columns = utils.tuplize(other_columns)
-        else:
-            other_columns = ()
-
-        # Check that all of the columns exist:
-        used_columns = sum([other_columns, self._spectrum_columns], tuple())
-        missing_columns = [
-            c for c in set(used_columns) if c not in self.data.columns
-        ]
-
-        if missing_columns:
-            raise ValueError(
-                "The following specified columns were not found: "
-                f"{missing_columns}"
-            )
-
-        # Get the feature columns
-        if feature_columns is None:
-            self._feature_columns = tuple(
-                c for c in self.data.columns if c not in used_columns
-            )
-        else:
-            self._feature_columns = utils.tuplize(feature_columns)
-
+        self._column_groups = column_groups
         self.make_bool_trarget()
         num_targets = (self.targets).sum()
         num_decoys = (~self.targets).sum()
@@ -431,67 +334,116 @@ class LinearPsmDataset(PsmDataset):
             if not num_decoys:
                 raise ValueError("No decoy PSMs were detected.")
 
-        # TODO: Evaluate if this is needed
-        # And make an actual compund primary index instead of
-        # a self-incremental.
-        self.data["_specid"] = np.arange(len(self.data))
+    @staticmethod
+    def new(
+        psms,
+        target_column: str,
+        peptide_column: str,
+        spectrum_columns: list[str] | tuple[str, ...],
+        feature_columns: list[str] | tuple[str, ...] | None = None,
+        extra_confidence_level_columns: list[str]
+        | tuple[str, ...]
+        | None = None,
+        copy_data: bool = True,
+        rng: int | np.random.Generator | None = None,
+        enforce_checks: bool = True,
+        *,
+        filename_column: str | None = None,
+        scan_column: str | None = None,
+        calcmass_column: str | None = None,
+        expmass_column: str | None = None,
+        rt_column: str | None = None,
+        charge_column: str | None = None,
+        protein_column: str | None = None,
+    ) -> LinearPsmDataset:
+        """Initialize a PsmDataset object from a ColumnGroups object."""
+
+        if extra_confidence_level_columns is None:
+            extra_confidence_level_columns = tuple()
+        else:
+            extra_confidence_level_columns = utils.tuplize(
+                extra_confidence_level_columns
+            )
+
+        spectrum_columns = utils.tuplize(spectrum_columns)
+        used_columns = (target_column, peptide_column)
+        used_columns += spectrum_columns
+        used_columns += extra_confidence_level_columns
+
+        if feature_columns is not None:
+            # Note ... I dont think this is needed anymore, since we are
+            # typechecking the element passed as a list.
+            used_columns += utils.tuplize(feature_columns)
+
+        missing_columns = [
+            c for c in set(used_columns) if c not in psms.columns
+        ]
+
+        if missing_columns:
+            raise ValueError(
+                "The following specified columns were not found: "
+                f"{missing_columns}"
+            )
+
+        # Get the feature columns
+        if feature_columns is None:
+            feature_columns = []
+            nonfeat_columns = []
+            for c in psms.columns:
+                # Add only if its not a string (int, float, bool)
+                if c in used_columns:
+                    continue
+                elif not isinstance(psms[c], str):
+                    feature_columns.append(c)
+                else:
+                    nonfeat_columns.append(c)
+            feature_columns = tuple(feature_columns)
+            LOGGER.info(
+                f"Found {len(feature_columns)} feature columns: "
+                f"{feature_columns}"
+            )
+            LOGGER.info(
+                f"Found {len(nonfeat_columns)} non-feature columns: "
+                f"{nonfeat_columns}"
+            )
+        else:
+            feature_columns = utils.tuplize(feature_columns)
+
+        column_groups = ColumnGroups(
+            columns=psms.columns,
+            target_column=target_column,
+            peptide_column=peptide_column,
+            spectrum_columns=spectrum_columns,
+            feature_columns=feature_columns,
+            extra_confidence_level_columns=extra_confidence_level_columns,
+            optional_columns=OptionalColumns(
+                filename=filename_column,
+                scan=scan_column,
+                calcmass=calcmass_column,
+                expmass=expmass_column,
+                rt=rt_column,
+                charge=charge_column,
+                protein=protein_column,
+            ),
+        )
+        return LinearPsmDataset(
+            psms=psms,
+            column_groups=column_groups,
+            copy_data=copy_data,
+            rng=rng,
+            enforce_checks=enforce_checks,
+        )
 
     @property
     def reader(self) -> TabularDataReader:
         return DataFrameReader(self.data)
 
     @property
-    def specId_column(self) -> str:
-        return "_specid"
+    def column_groups(self) -> ColumnGroups:
+        return self._column_groups
 
-    @property
-    def feature_columns(self) -> list[str]:
-        return self._feature_columns
-
-    @property
-    def peptide_column(self) -> str:
-        return self._peptide_column
-
-    @property
-    def level_columns(self) -> list[str]:
-        # TODO: revise if this is correct ...
-        # are there other instances in which the levels
-        # though this API would not match that level?
-        return [self.peptide_column]
-
-    @property
-    def filename_column(self) -> str | None:
-        return self.optional_columns.filename
-
-    @property
-    def scan_column(self) -> str | None:
-        return self.optional_columns.scan
-
-    @property
-    def calcmass_column(self) -> str | None:
-        return self.optional_columns.calcmass
-
-    @property
-    def rt_column(self) -> str | None:
-        return self.optional_columns.rt
-
-    @property
-    def charge_column(self) -> str | None:
-        return self.optional_columns.charge
-
-    @property
-    def expmass_column(self) -> str | None:
-        return self.optional_columns.expmass
-
-    @property
-    def target_column(self) -> str:
-        return self._target_column
-
-    def get_column_names(self):
-        return list(self.data.columns)
-
-    def get_optional_columns(self) -> OptionalColumns:
-        return self.optional_columns
+    def get_column_names(self) -> tuple[str, ...]:
+        return utils.tuplize(list(self.data.columns))
 
     def _split(self, folds, rng):
         inds = self.spectra_dataframe.index.to_numpy()
@@ -500,30 +452,40 @@ class LinearPsmDataset(PsmDataset):
         return out
 
     def make_bool_trarget(self):
+        out = self._make_bool_trarget(self._data[self.target_column])
+        self._data[self.target_column] = out
+
+    @staticmethod
+    def _make_bool_trarget(target_column: pd.Series):
         """Convert target column to boolean if possible.
 
         1. If its a 0-1 col convert to bool
         2. If its a -1,1 values > 0 becomes True, rest False
         """
-        curr_col = self._data[self._target_column]
-        if curr_col.dtype == bool:
-            return
+        if target_column.dtype == bool:
+            return target_column
 
-        if curr_col.dtype == int or curr_col.dtype == float:
+        if target_column.dtype == int or target_column.dtype == float:
             # Check if all values are 0 or 1
-            uniq_vals = curr_col.unique().tolist()
+            uniq_vals = target_column.unique().tolist()
             if uniq_vals == [0, 1]:
                 # If so, we can just cast to bool
-                self._data[self._target_column] = curr_col.astype(bool)
-                return
+                return target_column.astype(bool)
             elif uniq_vals == [-1, 1]:
-                self._data[self._target_column] = curr_col > 0
+                return target_column > 0
+            else:
+                raise ValueError(
+                    f"Target column "
+                    "has values that are not boolean or 0/1 or -1/1."
+                    f"Please check and fix. (found {uniq_vals})"
+                )
 
         # If not raise an error ... most likely the cast will be
         # Something the user does not want.
         raise ValueError(
-            f"Target column {self._target_column} "
-            "has values that are not boolean or 0-1, please check and fix."
+            "Target column "
+            "has values that are not boolean, 0/1 or -1/1,"
+            f" please check and fix. ({target_column})"
         )
 
     @property
@@ -540,22 +502,20 @@ class LinearPsmDataset(PsmDataset):
         return (
             f"A mokapot.dataset.LinearPsmDataset with {len(self.data)} "
             "PSMs:\n"
-            f"\t- Protein confidence estimates enabled: {self.has_proteins}\n"
             f"\t- Target PSMs: {self.targets.sum()}\n"
             f"\t- Decoy PSMs: {(~self.targets).sum()}\n"
             "\t- Unique spectra: "
             f"{len(self.spectra_dataframe.drop_duplicates())}\n"
             f"\t- Unique peptides: {len(self.peptides.drop_duplicates())}\n"
             f"\t- Features: {self.feature_columns}"
-            f"\t- Optional Cols: {self.optional_columns}"
         )
 
     @property
-    def targets(self):
+    def targets(self) -> np.ndarray[bool]:
         """A :py:class:`numpy.ndarray` indicating whether each PSM is a target
         sequence.
         """
-        return self.data[self._target_column].values
+        return self.data[self.target_column].values
 
     @property
     def peptides(self):
@@ -592,32 +552,9 @@ class LinearPsmDataset(PsmDataset):
         )
 
     @property
-    def metadata_columns(self):
-        """A list of the metadata columns"""
-        return tuple(
-            c for c in self.data.columns if c not in self._feature_columns
-        )
-
-    @property
-    def metadata(self):
-        """A :py:class:`pandas.DataFrame` of the metadata."""
-        return self.data.loc[:, self.metadata_columns]
-
-    @property
     def features(self):
         """A :py:class:`pandas.DataFrame` of the features."""
-        return self.data.loc[:, self._feature_columns]
-
-    @property
-    def spectrum_columns(self) -> list[str]:
-        """Return the spectrum columns."""
-        # all opitional columns + labels
-        cols = [x for x in self.data.columns if x not in self.feature_columns]
-        return cols
-
-    @property
-    def protein_column(self) -> str | None:
-        return self._protein_column
+        return self.data.loc[:, self.feature_columns]
 
     @property
     def spectra_dataframe(self):
@@ -625,7 +562,7 @@ class LinearPsmDataset(PsmDataset):
         A :py:class:`pandas.DataFrame` of the columns that uniquely
         identify a mass spectrum.
         """
-        return self.data.drop(columns=list(self.feature_columns))
+        return self.data[self.spectrum_columns]
 
     @property
     def columns(self):
@@ -655,7 +592,7 @@ class LinearPsmDataset(PsmDataset):
                 ).sum()
                 for col in self.feature_columns
             ],
-            index=self._feature_columns,
+            index=self.feature_columns,
         )
 
     def find_best_feature(self, eval_fdr: float) -> LabeledBestFeature:
@@ -705,8 +642,8 @@ class LinearPsmDataset(PsmDataset):
 
         out = LabeledBestFeature(
             feature=BestFeatureProperties(
-                name=best_feat,
-                positives=best_positives,
+                name=str(best_feat),
+                positives=int(best_positives),
                 descending=best_desc,
                 fdr=eval_fdr,
             ),
@@ -735,16 +672,26 @@ class LinearPsmDataset(PsmDataset):
                 start = end
 
     def read_data(
-        self, columns: list[str] | None = None, chunk_size: int | None = None
-    ) -> pd.DataFrame | Generator[pd.DataFrame, None, None]:
+        self,
+        columns: list[str] | None = None,
+    ) -> pd.DataFrame:
         data = self.data
         if columns is not None:
             data = data[columns]
 
-        if chunk_size:
-            return self._yield_data_chunked(data, chunk_size)
-        else:
-            return self.data
+        return self.data
+
+    def read_data_chunked(
+        self,
+        *,
+        chunk_size: int,
+        columns: list[str] | None = None,
+    ) -> Generator[pd.DataFrame, None, None]:
+        data = self.data
+        if columns is not None:
+            data = data[columns]
+
+        return self._yield_data_chunked(data, chunk_size)
 
     def get_default_extension(self) -> str:
         return ".csv"
@@ -766,23 +713,8 @@ class OnDiskPsmDataset(PsmDataset):
     def __init__(
         self,
         filename_or_reader: Path | TabularDataReader,
-        *,
-        target_column,
-        spectrum_columns,
-        peptide_column,
-        protein_column,
-        feature_columns,
-        metadata_columns,
-        metadata_column_types,  # the columns+types could be a dict.
-        level_columns,  # What is this supposed to be?
-        filename_column,
-        scan_column,
-        specId_column,  # Why does this have different capitalization?
-        calcmass_column,
-        expmass_column,
-        rt_column,
-        charge_column,
-        spectra_dataframe,
+        column_groups: ColumnGroups,
+        spectra_dataframe: pd.DataFrame,
     ):
         """Initialize an OnDiskPsmDataset object."""
         super().__init__(rng=None)
@@ -791,46 +723,19 @@ class OnDiskPsmDataset(PsmDataset):
         else:
             self._reader = TabularDataReader.from_path(filename_or_reader)
 
-        columns = self.reader.get_column_names()
-        self.columns = columns
-        # Q: Why ae columns asked for in the constructor?
-        # .  Since we can read them from the reader ...
-        self._target_column = target_column
-        self._peptide_column = peptide_column
-        self._protein_column = protein_column
-        self._spectrum_columns = spectrum_columns
-        self._feature_columns = feature_columns
-        self._metadata_columns = metadata_columns
-        self.metadata_column_types = metadata_column_types
-        self._level_columns = level_columns
-        self._filename_column = filename_column
-        self.scan_column = scan_column
-        self.calcmass_column = calcmass_column
-        self.expmass_column = expmass_column
-        self.rt_column = rt_column
-        self.charge_column = charge_column
-        self._specId_column = specId_column
+        self._column_groups = column_groups
         self._spectra_dataframe = spectra_dataframe
-
-        opt_cols = OptionalColumns(
-            filename=filename_column,
-            scan=scan_column,
-            calcmass=calcmass_column,
-            expmass=expmass_column,
-            rt=rt_column,
-            charge=charge_column,
-        )
-        self.optional_columns = opt_cols
 
         # todo: nice to have: here reader.file_name should be something like
         #   reader.user_repr() which tells the user where to look for the
         #   error, however, we cannot expect the reader to have a file_name
         def check_column(column):
-            if column and column not in columns:
+            reader_columns = self.reader.get_column_names()
+            if column and column not in reader_columns:
                 file_name = getattr(self.reader, "file_name", "<unknown file>")
                 raise ValueError(
                     f"Column '{column}' not found in data columns of file"
-                    f" '{file_name}' ({columns})"
+                    f" '{file_name}' ({reader_columns})"
                 )
 
         def check_columns(columns):
@@ -838,73 +743,77 @@ class OnDiskPsmDataset(PsmDataset):
                 for column in columns:
                     check_column(column)
 
-        check_columns(self.columns)
+        check_columns(self.column_groups.columns)
         check_column(self.target_column)
         check_column(self.peptide_column)
-        check_column(self.protein_column)
         check_columns(self.spectrum_columns)
         check_columns(self.feature_columns)
         check_columns(self.metadata_columns)
-        check_columns(self.level_columns)
-        check_column(self.filename_column)
-        check_column(self.scan_column)
-        check_column(self.calcmass_column)
-        check_column(self.expmass_column)
-        check_column(self.rt_column)
-        check_column(self.charge_column)
-        # check_column(self.specId_column)
+        check_columns(self.confidence_level_columns)
+        check_columns(self.extra_confidence_level_columns)
+
+    @staticmethod
+    def new(
+        filename_or_reader: Path | TabularDataReader,
+        *,
+        target_column: str,
+        peptide_column: str,
+        spectrum_columns: list[str],
+        feature_columns: list[str],
+        extra_confidence_level_columns: list[str],
+        spectra_dataframe: pd.DataFrame,
+        protein_column: str | None = None,
+        filename_column: str | None = None,
+        scan_column: str | None = None,
+        calcmass_column: str | None = None,
+        expmass_column: str | None = None,
+        rt_column: str | None = None,
+        charge_column: str | None = None,
+    ):
+        """Initialize an OnDiskPsmDataset object."""
+        if isinstance(filename_or_reader, TabularDataReader):
+            reader = filename_or_reader
+        else:
+            reader = TabularDataReader.from_path(filename_or_reader)
+
+        columns = reader.get_column_names()
+
+        column_groups = ColumnGroups(
+            columns=utils.tuplize(columns),
+            target_column=target_column,
+            peptide_column=peptide_column,
+            spectrum_columns=utils.tuplize(spectrum_columns),
+            feature_columns=utils.tuplize(feature_columns),
+            extra_confidence_level_columns=utils.tuplize(
+                extra_confidence_level_columns
+            ),
+            optional_columns=OptionalColumns(
+                filename=filename_column,
+                scan=scan_column,
+                calcmass=calcmass_column,
+                expmass=expmass_column,
+                rt=rt_column,
+                charge=charge_column,
+                protein=protein_column,
+            ),
+        )
+
+        return OnDiskPsmDataset(
+            reader,
+            column_groups=column_groups,
+            spectra_dataframe=spectra_dataframe,
+        )
 
     def get_default_extension(self) -> str:
         return self.reader.get_default_extension()
-
-    @property
-    def metadata_columns(self):
-        return self._metadata_columns
 
     @property
     def reader(self) -> TabularDataReader:
         return self._reader
 
     @property
-    def peptides(self) -> pd.Series:
-        tmp = self.reader.read(columns=[self.peptide_column])
-        return tmp
-
-    @property
-    def specId_column(self) -> str:
-        # breakpoint()
-        # I am thinking on removing this ... since the "key"
-        # of a spectrum is all the columns that identify it uniquely.
-        # ... not this column that might or might not be present.
-        return self._specId_column
-
-    @property
-    def spectrum_columns(self) -> list[str]:
-        return self._spectrum_columns
-
-    @property
-    def level_columns(self) -> list[str]:
-        return self._level_columns
-
-    @property
-    def peptide_column(self) -> str:
-        return self._peptide_column
-
-    @property
-    def protein_column(self) -> str | None:
-        return self._protein_column
-
-    @property
-    def filename_column(self) -> str | None:
-        return self._filename_column
-
-    @property
-    def target_column(self) -> str:
-        return self._target_column
-
-    @property
-    def feature_columns(self) -> list[str]:
-        return list(self._feature_columns)
+    def column_groups(self) -> ColumnGroups:
+        return self._column_groups
 
     @property
     def spectra_dataframe(self) -> pd.DataFrame:
@@ -914,12 +823,9 @@ class OnDiskPsmDataset(PsmDataset):
     def spectra_dataframe(self):
         del self._spectra_dataframe
 
-    def get_column_names(self) -> list[str]:
+    def get_column_names(self) -> tuple[str, ...]:
         columns = self.reader.get_column_names()
-        return columns
-
-    def get_optional_columns(self) -> OptionalColumns:
-        return self.optional_columns
+        return utils.tuplize(columns)
 
     def __repr__(self) -> str:
         spec_sec = "\tUnset"
@@ -932,18 +838,8 @@ class OnDiskPsmDataset(PsmDataset):
         rep += f"Reader: {self.reader}\n"
         rep += f"Spectrum columns: {self.spectrum_columns}\n"
         rep += f"Peptide column: {self.peptide_column}\n"
-        rep += f"Protein column: {self.protein_column}\n"
         rep += f"Feature columns: {self.feature_columns}\n"
-        rep += f"Metadata columns: {self.metadata_columns}\n"
-        rep += f"Metadata columns types: {self.metadata_column_types}\n"
-        rep += f"Level columns: {self.level_columns}\n"
-        rep += f"Filename column: {self.filename_column}\n"
-        rep += f"Scan column: {self.scan_column}\n"
-        rep += f"Calcmass column: {self.calcmass_column}\n"
-        rep += f"Expmass column: {self.expmass_column}\n"
-        rep += f"Rt column: {self.rt_column}\n"
-        rep += f"Charge column: {self.charge_column}\n"
-        # rep += f"SpecId column: {self.specId_column}\n"
+        rep += f"Level columns: {self.confidence_level_columns}\n"
         rep += f"Spectra DF: \n{spec_sec}\n"
         return rep
 
@@ -970,9 +866,20 @@ class OnDiskPsmDataset(PsmDataset):
         numpy.ndarray
             An array of calibrated scores.
         """
-        targets = self.read_data(columns=self.target_column)
+        targets = self.read_data(columns=[self.target_column])
         targets = utils.convert_targets_column(targets, self.target_column)
-        labels = _update_labels(scores, targets, eval_fdr, desc)
+        targets_series = targets[self.target_column]
+        if not isinstance(targets_series, pd.Series):
+            raise RuntimeError(
+                f"Mokapot expected a series but got: {type(targets_series)}"
+                " Please report this as a bug."
+            )
+        labels = _update_labels(
+            scores,
+            targets_series,
+            eval_fdr,
+            desc,
+        )
         pos = labels == 1
         if not pos.sum():
             raise RuntimeError(
@@ -1107,7 +1014,15 @@ class OnDiskPsmDataset(PsmDataset):
             Each of the returned tuples contains the indices  of PSMs in a
             split.
         """
-        spectra = self.spectra_dataframe[self.spectrum_columns].values
+        if not all(
+            c in self.spectra_dataframe.columns for c in self.spectrum_columns
+        ):
+            raise ValueError(
+                f"Columns {self.spectrum_columns} not found in spectra"
+                " dataframe"
+                f" Available columns: {self.spectra_dataframe.columns}"
+            )
+        spectra = self.spectra_dataframe[list(self.spectrum_columns)].values
         # Q: Why is this deleted here?
         del self.spectra_dataframe
         spectra = np.apply_along_axis(OnDiskPsmDataset._hash_row, 1, spectra)
@@ -1140,15 +1055,19 @@ class OnDiskPsmDataset(PsmDataset):
 
     def read_data(
         self,
-        columns=None,
-        chunk_size=None,
-    ) -> pd.DataFrame | Generator[pd.DataFrame, None, None]:
-        if chunk_size:
-            return self.reader.get_chunked_data_iterator(
-                chunk_size=chunk_size, columns=columns
-            )
-        else:
-            return self.reader.read(columns=columns)
+        columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+        return self.reader.read(columns=columns)
+
+    def read_data_chunked(
+        self,
+        *,
+        chunk_size: int,
+        columns: list[str] | None = None,
+    ) -> Generator[pd.DataFrame, None, None]:
+        return self.reader.get_chunked_data_iterator(
+            chunk_size=chunk_size, columns=columns
+        )
 
     @property
     def scores(self) -> np.ndarray | None:
