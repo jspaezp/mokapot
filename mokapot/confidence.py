@@ -252,13 +252,15 @@ class Confidence:
             reader = TabularDataReader.from_path(level_path)
             reader = ComputedTabularDataReader(
                 reader,
-                "is_decoy",
+                STANDARD_COLUMN_NAME_MAP["is_decoy"],
                 np.dtype("bool"),
                 lambda df: ~df[self._target_column].values,
             )
 
             writer = TargetDecoyWriter(
-                out_writers, write_decoys, decoy_column="is_decoy"
+                out_writers,
+                write_decoys=write_decoys,
+                decoy_column=STANDARD_COLUMN_NAME_MAP["is_decoy"],
             )
 
             compute_and_write_confidence(
@@ -952,9 +954,13 @@ class OutputWriterFactory:
         self.id_col = id_column
         id_col = [id_column] if id_column is not None else []
         prot_col = [protein_column] if protein_column is not None else []
+        decoy_col = (
+            [STANDARD_COLUMN_NAME_MAP["is_decoy"]] if write_decoys else []
+        )
         self.output_column_names = [
             *id_col,
             *spectra_columns,
+            *decoy_col,
             peptide_column,
             *extra_output_columns,
             STANDARD_COLUMN_NAME_MAP["score"],
@@ -1242,8 +1248,7 @@ def compute_and_write_confidence(
         data = temp_reader.read()
         scores = data[STANDARD_COLUMN_NAME_MAP["score"]].to_numpy()
 
-        # Q: Should I add 'is_decoy' to the standard col mapping?
-        targets = ~data["is_decoy"].to_numpy()
+        targets = ~data[STANDARD_COLUMN_NAME_MAP["is_decoy"]].to_numpy()
         if all(targets):
             LOGGER.warning(
                 "No decoy PSMs remain for confidence estimation. "
@@ -1296,7 +1301,10 @@ def compute_and_write_confidence(
         score_target_iterator = create_score_target_iterator(
             temp_reader.get_chunked_data_iterator(
                 chunk_size=CONFIDENCE_CHUNK_SIZE,
-                columns=[STANDARD_COLUMN_NAME_MAP["score"], "is_decoy"],
+                columns=[
+                    STANDARD_COLUMN_NAME_MAP["score"],
+                    STANDARD_COLUMN_NAME_MAP["is_decoy"],
+                ],
             )
         )
         hist_data = TDHistData.from_score_target_iterator(
@@ -1327,7 +1335,7 @@ def compute_and_write_confidence(
 def create_score_target_iterator(chunked_iterator: Iterator):
     for df_chunk in chunked_iterator:
         scores = df_chunk[STANDARD_COLUMN_NAME_MAP["score"]].values
-        targets = ~df_chunk["is_decoy"].values
+        targets = ~df_chunk[STANDARD_COLUMN_NAME_MAP["is_decoy"]].values
         yield scores, targets
 
 
