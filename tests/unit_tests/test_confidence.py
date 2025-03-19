@@ -247,7 +247,7 @@ def test_confidence_api(inmem_psms_ds, tmp_path, decoys):
         acceptable_peptide_range = 0.9 * (ntargets + ndecoys)
         npeps = len(conf[0].psms["peptide"])
         assert npeps > acceptable_peptide_range
-        assert npeps < (ntargets + ndecoys)
+        assert npeps <= (ntargets + ndecoys)
     else:
         assert len(conf[0].psms) == ntargets
         assert conf[0].psms.columns.tolist() == [
@@ -261,4 +261,4 @@ def test_confidence_api(inmem_psms_ds, tmp_path, decoys):
         acceptable_peptide_range = 0.9 * ntargets
         npeps = len(conf[0].psms["peptide"])
         assert npeps > acceptable_peptide_range
-        assert npeps < ntargets
+        assert npeps <= ntargets

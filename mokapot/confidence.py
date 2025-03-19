@@ -978,6 +978,8 @@ class OutputWriterFactory:
             STANDARD_COLUMN_NAME_MAP["posterior_error_prob"],
         ]
 
+        self.initialized_writers = set()
+
     def __repr__(self) -> str:
         formatted_dict = pformat(self.__dict__)
         return f"{self.__class__!s}({formatted_dict})"
@@ -1033,11 +1035,17 @@ class OutputWriterFactory:
 
         writer = TabularDataWriter.from_suffix(path, output_columns, [])
         if initialize:
-            writer.initialize()
+            try:
+                writer.initialize()
+            except FileExistsError as e:
+                context = f"Failed to initialize writer: {e} for level {level}"
+                raise FileExistsError(context) from e
         return writer
 
     def build_writers(
-        self, level_manager: LevelManager, prefix: str | None = None
+        self,
+        level_manager: LevelManager,
+        prefix: str | None = None,
     ) -> tuple[
         dict[str, list[TabularDataWriter] | list[ConfidenceSqliteWriter]], str
     ]:
@@ -1081,12 +1089,21 @@ class OutputWriterFactory:
             ]
 
             outfile_targets = level_manager.dest_dir / "".join(name)
+            # We need to initalize only if we are not appending
+            # For instance if this is the second dataset in a
+            # multi-dataset analysis with aggregation,
+            # we need to initialize the file only once.
+
+            should_init = not self.append_to_output_file
+            if outfile_targets in self.initialized_writers:
+                should_init = False
+            self.initialized_writers.add(outfile_targets)
 
             output_writers[level].append(
                 self._create_writer(
                     path=outfile_targets,
                     level=level,
-                    initialize=not self.append_to_output_file,
+                    initialize=should_init,
                 )
             )
 
@@ -1098,11 +1115,15 @@ class OutputWriterFactory:
                     str(level_manager.default_extension),
                 ]
                 outfile_decoys = level_manager.dest_dir / "".join(decoy_name)
+                if outfile_decoys in self.initialized_writers:
+                    should_init = False
+                self.initialized_writers.add(outfile_decoys)
+
                 output_writers[level].append(
                     self._create_writer(
                         path=outfile_decoys,
                         level=level,
-                        initialize=not self.append_to_output_file,
+                        initialize=should_init,
                     )
                 )
 
